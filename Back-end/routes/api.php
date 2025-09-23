@@ -48,6 +48,7 @@ Route::get('test-simple', function () {
 Route::get('creches-public', [CrecheController::class, 'index']);
 Route::get('criancas-public', [CriancaController::class, 'index']);
 Route::get('criancas-public/{crianca}', [CriancaController::class, 'show']); // Rota show pública
+Route::delete('criancas-public/{crianca}', [CriancaController::class, 'destroy']); // Rota desativar pública
 Route::get('responsaveis-public', [ResponsavelController::class, 'index']);
 Route::get('criterios', [CriterioController::class, 'index']);
 

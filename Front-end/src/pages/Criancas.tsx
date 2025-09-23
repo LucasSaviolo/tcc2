@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react';
 import { apiService } from '../services/api';
 import Card from '../components/ui/Card';
@@ -10,6 +10,7 @@ import CriancaForm from '../components/business/CriancaForm';
 import type { Crianca, PaginationParams } from '../types';
 
 const Criancas: React.FC = () => {
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<PaginationParams>({
     page: 1,
     per_page: 10,
@@ -32,8 +33,41 @@ const Criancas: React.FC = () => {
     retry: 1,
   });
 
+  // Mutation para desativar criança
+  const desativarCriancaMutation = useMutation({
+    mutationFn: async (criancaId: number) => {
+      const response = await fetch(`http://127.0.0.1:8000/api/criancas-public/${criancaId}`, {
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao desativar criança');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidar e recarregar a lista de crianças
+      queryClient.invalidateQueries({ queryKey: ['criancas'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message || 'Erro ao desativar criança');
+    },
+  });
+
   const handleSearch = (search: string) => {
     setFilters(prev => ({ ...prev, search, page: 1 }));
+  };
+
+  const handleDesativarCrianca = (criancaId: number, nomeCrianca: string) => {
+    if (window.confirm(`Tem certeza que deseja desativar a criança "${nomeCrianca}"?\n\nEsta ação irá alterar o status da criança para "Desativada" e ela será removida da fila de espera.`)) {
+      desativarCriancaMutation.mutate(criancaId);
+    }
   };
 
   const handleViewCrianca = async (criancaId: number) => {
@@ -233,7 +267,13 @@ const Criancas: React.FC = () => {
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-800"
+                        onClick={() => handleDesativarCrianca(crianca.id, crianca.nome)}
+                        disabled={desativarCriancaMutation.isPending}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

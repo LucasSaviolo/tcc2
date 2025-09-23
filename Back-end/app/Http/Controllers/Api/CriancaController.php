@@ -55,7 +55,8 @@ class CriancaController extends Controller
         $perPage = $request->get('per_page', 15);
         $search = $request->get('search');
         
-        $query = Crianca::with(['responsavel', 'preferenciasCreche.creche', 'filaEspera', 'alocacao.creche']);
+        $query = Crianca::with(['responsavel', 'preferenciasCreche.creche', 'filaEspera', 'alocacao.creche'])
+            ->where('status', '!=', 'desistiu'); // Excluir crianças desativadas
         
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -276,33 +277,33 @@ class CriancaController extends Controller
         DB::beginTransaction();
         
         try {
-            // Remover relacionamentos
-            PreferenciaCreche::where('crianca_id', $crianca->id)->delete();
-            FilaEspera::where('crianca_id', $crianca->id)->delete();
-            
             // Verificar se há alocação ativa
             $alocacaoAtiva = $crianca->alocacao()->where('status', 'ativa')->first();
             if ($alocacaoAtiva) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Não é possível remover criança com alocação ativa'
+                    'message' => 'Não é possível desativar criança com alocação ativa. Primeiro remova a alocação.'
                 ], 422);
             }
             
-            $crianca->delete();
+            // Ao invés de deletar, alterar o status para 'desistiu'
+            $crianca->update(['status' => 'desistiu']);
+            
+            // Remover da fila de espera se estiver aguardando
+            FilaEspera::where('crianca_id', $crianca->id)->delete();
             
             DB::commit();
             
             return response()->json([
                 'success' => true,
-                'message' => 'Criança removida com sucesso'
+                'message' => 'Criança desativada com sucesso'
             ]);
             
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao remover criança: ' . $e->getMessage()
+                'message' => 'Erro ao desativar criança: ' . $e->getMessage()
             ], 500);
         }
     }
