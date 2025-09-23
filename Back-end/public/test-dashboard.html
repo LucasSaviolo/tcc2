@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Dashboard API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .endpoint { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .response { background: #e8f5e8; padding: 10px; margin: 10px 0; border-radius: 5px; white-space: pre-wrap; }
+        .error { background: #ffeaea; color: #d63031; }
+        button { background: #0984e3; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #074f8c; }
+        .loading { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Teste das 3 Rotas do Dashboard</h1>
+        
+        <div class="endpoint">
+            <h3>1. GET /api/dashboard/stats</h3>
+            <button onclick="testarStats()">Testar Stats</button>
+            <div id="stats-response" class="response" style="display: none;"></div>
+        </div>
+
+        <div class="endpoint">
+            <h3>2. GET /api/dashboard/chart</h3>
+            <button onclick="testarChart()">Testar Chart</button>
+            <div id="chart-response" class="response" style="display: none;"></div>
+        </div>
+
+        <div class="endpoint">
+            <h3>3. GET /api/dashboard/recent</h3>
+            <button onclick="testarRecent()">Testar Recent</button>
+            <div id="recent-response" class="response" style="display: none;"></div>
+        </div>
+
+        <div class="endpoint">
+            <h3>Testar Todas</h3>
+            <button onclick="testarTodas()">Executar Todos os Testes</button>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:8000/api';
+        
+        // Token de teste (primeiro faça login)
+        let authToken = '';
+
+        async function fazerLogin() {
+            try {
+                const response = await fetch(`${BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@teste.com',
+                        password: 'password'
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    authToken = data.data.token;
+                    console.log('Login realizado com sucesso');
+                    return true;
+                } else {
+                    console.error('Erro no login:', data);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Erro ao fazer login:', error);
+                return false;
+            }
+        }
+
+        async function testarStats() {
+            const responseDiv = document.getElementById('stats-response');
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response loading';
+            responseDiv.textContent = 'Carregando...';
+
+            if (!authToken) {
+                const loginOk = await fazerLogin();
+                if (!loginOk) {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = 'Erro: Não foi possível fazer login';
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/dashboard/stats`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                responseDiv.className = response.ok ? 'response' : 'response error';
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = 'Erro: ' + error.message;
+            }
+        }
+
+        async function testarChart() {
+            const responseDiv = document.getElementById('chart-response');
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response loading';
+            responseDiv.textContent = 'Carregando...';
+
+            if (!authToken) {
+                const loginOk = await fazerLogin();
+                if (!loginOk) {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = 'Erro: Não foi possível fazer login';
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/dashboard/chart`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                responseDiv.className = response.ok ? 'response' : 'response error';
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = 'Erro: ' + error.message;
+            }
+        }
+
+        async function testarRecent() {
+            const responseDiv = document.getElementById('recent-response');
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response loading';
+            responseDiv.textContent = 'Carregando...';
+
+            if (!authToken) {
+                const loginOk = await fazerLogin();
+                if (!loginOk) {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = 'Erro: Não foi possível fazer login';
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/dashboard/recent`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                responseDiv.className = response.ok ? 'response' : 'response error';
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = 'Erro: ' + error.message;
+            }
+        }
+
+        async function testarTodas() {
+            await testarStats();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testarChart();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testarRecent();
+        }
+    </script>
+</body>
+</html>

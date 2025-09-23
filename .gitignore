@@ -1,0 +1,46 @@
+# Dependências Node.js
+Front-end/node_modules/
+Front-end/.env
+Front-end/dist/
+Front-end/.DS_Store
+
+# Dependências PHP/Laravel
+Back-end/vendor/
+Back-end/.env
+Back-end/.env.backup
+Back-end/.phpunit.result.cache
+Back-end/Homestead.json
+Back-end/Homestead.yaml
+Back-end/npm-debug.log
+Back-end/yarn-error.log
+
+# Logs Laravel
+Back-end/storage/*.key
+Back-end/storage/app/
+Back-end/storage/framework/cache/
+Back-end/storage/framework/sessions/
+Back-end/storage/framework/testing/
+Back-end/storage/framework/views/
+Back-end/storage/logs/
+
+# Base de dados SQLite
+Back-end/database/database.sqlite
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Cache
+*.cache
+
+# Arquivos temporários
+*.tmp
+*.temp

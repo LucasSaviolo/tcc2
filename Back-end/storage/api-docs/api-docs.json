@@ -1,0 +1,476 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Sistema de Creches API",
+        "description": "API REST completa para Sistema de Alocação de Creches",
+        "contact": {
+            "email": "admin@sistema-creches.com"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://my-default-host.com",
+            "description": "API Server"
+        }
+    ],
+    "paths": {
+        "/api/alocacoes": {
+            "get": {
+                "tags": [
+                    "Alocações"
+                ],
+                "summary": "Lista de alocações",
+                "operationId": "60ac0acae66c044f8c56ab3d253de2c0",
+                "responses": {
+                    "200": {
+                        "description": "Lista de alocações obtida com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/alocacoes/executar": {
+            "post": {
+                "tags": [
+                    "Alocações"
+                ],
+                "summary": "Executar alocação automática",
+                "operationId": "78074083c8cda23ec8f5de70e04ef0c6",
+                "responses": {
+                    "200": {
+                        "description": "Alocação executada com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/alocacoes/historico": {
+            "get": {
+                "tags": [
+                    "Alocações"
+                ],
+                "summary": "Histórico de alocações",
+                "operationId": "e14f2a8ac210d6b355b0391757661bca",
+                "responses": {
+                    "200": {
+                        "description": "Histórico obtido com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/login": {
+            "post": {
+                "tags": [
+                    "Autenticação"
+                ],
+                "summary": "Login do usuário",
+                "operationId": "dd51a484b7fa0f97c7680fdbde14cf5f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email"
+                                    },
+                                    "password": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login realizado com sucesso"
+                    },
+                    "422": {
+                        "description": "Credenciais inválidas"
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "tags": [
+                    "Autenticação"
+                ],
+                "summary": "Logout do usuário",
+                "operationId": "df9bdc6c7a6d9f20b983526b2ec0f698",
+                "responses": {
+                    "200": {
+                        "description": "Logout realizado com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/user": {
+            "get": {
+                "tags": [
+                    "Autenticação"
+                ],
+                "summary": "Obter usuário autenticado",
+                "operationId": "015ae3b99f0678ec8fe0a02409751660",
+                "responses": {
+                    "200": {
+                        "description": "Dados do usuário autenticado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/creches": {
+            "get": {
+                "tags": [
+                    "Creches"
+                ],
+                "summary": "Lista de creches",
+                "operationId": "e217456bd181b6dcde4decf300bdd637",
+                "responses": {
+                    "200": {
+                        "description": "Lista de creches obtida com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Creches"
+                ],
+                "summary": "Criar nova creche",
+                "operationId": "3538a3cfaf7e3713623e42055987fe66",
+                "responses": {
+                    "201": {
+                        "description": "Creche criada com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/creches/{id}": {
+            "get": {
+                "tags": [
+                    "Creches"
+                ],
+                "summary": "Detalhes de uma creche",
+                "operationId": "f270b7fc7dc0a4466410db85c85fbc5c",
+                "responses": {
+                    "200": {
+                        "description": "Detalhes da creche obtidos com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Creches"
+                ],
+                "summary": "Atualizar creche",
+                "operationId": "a663c76b62b2bc09cf1f82777409c2a6",
+                "responses": {
+                    "200": {
+                        "description": "Creche atualizada com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/criancas": {
+            "get": {
+                "tags": [
+                    "Crianças"
+                ],
+                "summary": "Lista paginada de crianças",
+                "operationId": "fd16c2198d51932c29ae53a7784cb300",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Página",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Itens por página",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de crianças obtida com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Crianças"
+                ],
+                "summary": "Criar nova criança",
+                "operationId": "6789511410401a8ed7b0328975ca80c0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nome",
+                                    "data_nascimento",
+                                    "idade",
+                                    "responsavel_id",
+                                    "preferencias_creche"
+                                ],
+                                "properties": {
+                                    "nome": {
+                                        "type": "string"
+                                    },
+                                    "data_nascimento": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "idade": {
+                                        "type": "integer"
+                                    },
+                                    "cpf": {
+                                        "type": "string"
+                                    },
+                                    "responsavel_id": {
+                                        "type": "integer"
+                                    },
+                                    "preferencias_creche": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Criança criada com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/criancas/{id}": {
+            "get": {
+                "tags": [
+                    "Crianças"
+                ],
+                "summary": "Detalhes de uma criança",
+                "operationId": "6e4edaa055dfbb841b479696490b34a8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalhes da criança obtidos com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Crianças"
+                ],
+                "summary": "Atualizar criança",
+                "operationId": "91340aa43c933af45edbd07120744f10",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Criança atualizada com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Crianças"
+                ],
+                "summary": "Remover criança",
+                "operationId": "dd08a9e49d94e1ace7502727803d1c48",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Criança removida com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/fila-espera": {
+            "get": {
+                "tags": [
+                    "Fila de Espera"
+                ],
+                "summary": "Lista da fila de espera",
+                "operationId": "ffc26e6052651b67f2928e494e4a7341",
+                "responses": {
+                    "200": {
+                        "description": "Lista da fila obtida com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/fila-espera/recalcular": {
+            "post": {
+                "tags": [
+                    "Fila de Espera"
+                ],
+                "summary": "Recalcular pontuações da fila",
+                "operationId": "a45f8cd6beb944e1ee419f48f0345f81",
+                "responses": {
+                    "200": {
+                        "description": "Pontuações recalculadas com sucesso"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Alocações",
+            "description": "Endpoints para gerenciamento de alocações"
+        },
+        {
+            "name": "Autenticação",
+            "description": "Endpoints para autenticação de usuários"
+        },
+        {
+            "name": "Creches",
+            "description": "Endpoints para gerenciamento de creches"
+        },
+        {
+            "name": "Crianças",
+            "description": "Endpoints para gerenciamento de crianças"
+        },
+        {
+            "name": "Fila de Espera",
+            "description": "Endpoints para gerenciamento da fila de espera"
+        }
+    ]
+}
