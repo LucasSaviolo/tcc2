@@ -132,7 +132,7 @@ npm run dev
 - [x] Dashboard principal com indicadores
 
 ### ✅ Exportações
-- [x] Exportação PDF de todos os relatórios
+- [] Exportação PDF de todos os relatórios
 - [x] Interface para seleção de relatórios
 
 ## 🔄 Status do Desenvolvimento
@@ -145,14 +145,13 @@ npm run dev
 
 - [ ] Sistema completo de autenticação no frontend
 - [ ] Validações mais robustas
-- [ ] Testes automatizados
-- [ ] Deploy em produção
+- [ ] Testes
 
 ## 📝 Notas de Desenvolvimento
 
 Este projeto foi desenvolvido como Trabalho de Conclusão de Curso (TCC) e implementa um sistema completo de gerenciamento para creches municipais.
 
-### Versão Atual: v1.0.0-alpha
+### Versão Atual: v1.0.0
 - Sistema básico funcionando
 - Todos os relatórios implementados
 - Modal de visualização de crianças funcional
