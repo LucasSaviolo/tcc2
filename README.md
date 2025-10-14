@@ -62,12 +62,8 @@ Histórico de versões (resumo)
 - v0.4.0 - Exportação CSV/XLSX/PDF e seleção de colunas persistente no frontend.
 - v0.5.0 - Correções: remoção de dados aleatórios no backend para usar dados reais do banco; melhorias de formatação (CPF, telefone, percentuais) e ajustes de UI.
 
-Se precisar de um changelog mais detalhado, posso gerar um a partir do histórico de commits.
-
-Contato
 -------
 
-Se for necessário suporte, descreva a máquina (SO), versões do PHP/Node e quaisquer logs/erros relevantes.
 # Sistema de Gerenciamento de Creches - TCC
 
 Sistema completo para gerenciamento de creches com funcionalidades de cadastro de crianças, responsáveis, alocação de vagas e geração de relatórios.
