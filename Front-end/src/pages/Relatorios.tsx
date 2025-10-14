@@ -8,6 +8,29 @@ import { Pie, Bar } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Title, Tooltip, Legend);
 
+// opções de gráficos em escopo global do arquivo (usadas também por ReportTab)
+const pieChartOptions = {
+  responsive: true,
+  plugins: {
+    legend: {
+      position: 'bottom' as const,
+    },
+  },
+};
+
+const barChartOptions = {
+  responsive: true,
+  plugins: {
+    legend: {
+      position: 'top' as const,
+    },
+    title: {
+      display: true,
+      text: 'Estatísticas do Sistema',
+    },
+  },
+};
+
 interface DashboardData {
   totalCriancas: number;
   totalCreches: number;
@@ -103,27 +126,7 @@ const Relatorios: React.FC = () => {
     }
   };
 
-  const pieChartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'bottom' as const,
-      },
-    },
-  };
-
-  const barChartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: 'Estatísticas do Sistema',
-      },
-    },
-  };
+  
 
   if (loading && !dashboardData) {
     return (
@@ -333,7 +336,7 @@ const Relatorios: React.FC = () => {
             </div>
           )}
 
-          {/* Outros tabs com conteúdo similar */}
+          {/* Outros tabs: carregar dados reais do backend por tipo de relatório */}
           {activeTab !== 'dashboard' && (
             <div className="space-y-6">
               <Card>
@@ -341,19 +344,13 @@ const Relatorios: React.FC = () => {
                   <CardTitle>Relatório {activeTab}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 mb-4">
-                    Este relatório será carregado dinamicamente com dados do backend.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() => exportPDF(activeTab)}
-                      disabled={loading}
-                      className="flex items-center gap-2"
-                    >
-                      <FileDown className="h-4 w-4" />
-                      {loading ? 'Exportando...' : 'Exportar PDF'}
-                    </Button>
-                  </div>
+                  <ReportTab
+                    tipo={activeTab}
+                    filtroCreche={filtroCreche}
+                    dataInicio={filtroDataInicio}
+                    dataFim={filtroDataFim}
+                    onExport={() => exportPDF(activeTab)}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -365,3 +362,483 @@ const Relatorios: React.FC = () => {
 };
 
 export default Relatorios;
+
+// Componente simples para renderizar dados de cada relatório
+const ReportTab: React.FC<{
+  tipo: string;
+  filtroCreche?: string;
+  dataInicio?: string;
+  dataFim?: string;
+  onExport: () => void;
+}> = ({ tipo, filtroCreche, dataInicio, dataFim, onExport }) => {
+  const [data, setData] = useState<any>(null);
+  const [payloadRaw, setPayloadRaw] = useState<any>(null); // guarda o payload original para detectar `dashboard` e `indicadores`
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  // campos técnicos globais que geralmente escondemos
+  const GLOBAL_HIDDEN_FIELDS = ['id', 'created_at', 'updated_at', 'senha', 'password', 'token'];
+  // colunas selecionadas pelo usuário (persistidas por tipo de relatório)
+  const [selectedCols, setSelectedCols] = useState<string[]>([]);
+  // controle do painel de seleção de colunas
+  const [colsOpen, setColsOpen] = useState(false);
+  const REPORT_COLUMN_CONFIG: Record<string, { visible?: string[]; hidden?: string[]; labelMap?: Record<string,string> }> = {
+    // Relatório Geral de Crianças (tabela_simplificada)
+    'criancas': {
+      visible: ['nome', 'idade', 'status', 'creche_preferencia'],
+      hidden: ['cpf', 'id', 'created_at', 'updated_at']
+    },
+    // Por Creche -> por turma (tabela_simplificada)
+    'creches': {
+      visible: ['turma', 'vagas_ofertadas', 'ocupadas', 'disponiveis'],
+      hidden: ['id', 'created_at', 'updated_at']
+    },
+    // Responsáveis
+    'responsaveis': {
+      visible: ['nome', 'cpf', 'telefone', 'email', 'situacao', 'num_criancas_vinculadas'],
+      hidden: ['created_at', 'updated_at']
+    },
+    // Vagas e demandas (creche-level)
+    'vagas': {
+      visible: ['creche', 'vagas_ofertadas', 'criancas_na_fila', 'ocupacao_percentual'],
+      hidden: ['id']
+    },
+    // Transferências (padrão quando houver dados)
+    'transferencias': {
+      visible: ['nome', 'status', 'data_solicitacao', 'motivo'],
+      hidden: ['id']
+    },
+    // Estatístico: normalmente retorna objeto de indicadores e rankings (sem tabela)
+    'estatistico': {
+      visible: [],
+      hidden: []
+    }
+  };
+  
+  const exportCSV = (rows: any[], visibleKeys?: string[], filename = `relatorio-${tipo}.csv`) => {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      alert('Nenhum dado para exportar');
+      return;
+    }
+  const keys = visibleKeys && visibleKeys.length ? visibleKeys : Array.from(new Set(rows.flatMap((r: any) => Object.keys(r))));
+  const csv = [keys.join(',')].concat(rows.map(r => keys.map(k => `"${String(renderFormattedValue(k, r[k]) ?? '')}"`).join(','))).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportXLSX = async (rows: any[], visibleKeys?: string[], filename = `relatorio-${tipo}.xlsx`) => {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      alert('Nenhum dado para exportar');
+      return;
+    }
+    const XLSX = await import('xlsx');
+  const keys = visibleKeys && visibleKeys.length ? visibleKeys : Array.from(new Set(rows.flatMap((r: any) => Object.keys(r))));
+  const data = rows.map(r => keys.map(k => renderFormattedValue(k, r[k]) ?? ''));
+    const ws = XLSX.utils.aoa_to_sheet([keys, ...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+    XLSX.writeFile(wb, filename);
+  };
+
+  useEffect(() => {
+    let active = true;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (filtroCreche) params.append('creche_id', filtroCreche);
+        if (dataInicio) params.append('data_inicio', dataInicio);
+        if (dataFim) params.append('data_fim', dataFim);
+
+        const url = `http://127.0.0.1:8000/api/relatorios/${mapTipoToEndpoint(tipo)}?${params.toString()}`;
+          const res = await fetch(url);
+          if (!res.ok) {
+            // Captura erros do servidor e mostra mensagem amigável
+            const text = await res.text();
+            throw new Error(`Status ${res.status}: ${text.substring(0, 200)}`);
+          }
+          const json = await res.json();
+
+          // Normaliza o payload retornado pelo backend:
+          // - se existir `tabela_simplificada` (array) usa como fonte principal
+          // - senão, se existir `dados_completos` (array) usa essa
+          // - senão, se for um array usa diretamente
+          // - caso contrário mantém o objeto (por exemplo `{ dashboard: ..., indicadores: ... }`)
+          let payload: any = json.data ?? json;
+          setPayloadRaw(payload);
+          let finalData: any = payload;
+
+          if (payload && typeof payload === 'object') {
+            if (Array.isArray(payload.tabela_simplificada)) {
+              finalData = payload.tabela_simplificada;
+            } else if (Array.isArray(payload.dados_completos)) {
+              finalData = payload.dados_completos;
+            }
+          }
+
+          if (active) setData(finalData ?? []);
+      } catch (err:any) {
+        console.error('Erro ao carregar relatório', tipo, err);
+        if (active) {
+          // seta mensagem de erro como objeto para o ReportTab renderizar
+          setData({ __error: err.message || 'Erro ao carregar relatório' });
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchData();
+    return () => { active = false; };
+  }, [tipo, filtroCreche, dataInicio, dataFim]);
+
+  // inicializa seleção de colunas quando os dados/carregamento mudam
+  useEffect(() => {
+    if (!Array.isArray(data)) return;
+  const allKeys = Array.from(new Set(data.flatMap((row: any) => Object.keys(row))));
+    // aplicar configuração por tipo se houver
+    const cfg = REPORT_COLUMN_CONFIG[tipo];
+    let keys = allKeys.filter(k => !GLOBAL_HIDDEN_FIELDS.includes(k));
+    if (cfg) {
+      if (cfg.visible && cfg.visible.length) keys = cfg.visible.filter(k => allKeys.includes(k));
+      else if (cfg.hidden && cfg.hidden.length) keys = keys.filter(k => !cfg.hidden!.includes(k));
+    }
+    try {
+      const raw = localStorage.getItem(`relatorio_cols_${tipo}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as string[];
+        setSelectedCols(parsed.filter(k => keys.includes(k)));
+        return;
+      }
+    } catch {}
+    // seleção padrão: primeiras colunas
+    setSelectedCols(keys.slice(0, Math.min(8, keys.length)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(data), tipo]);
+
+  // persiste seleção quando muda
+  useEffect(() => {
+    try { localStorage.setItem(`relatorio_cols_${tipo}`, JSON.stringify(selectedCols)); } catch {}
+  }, [selectedCols, tipo]);
+
+  if (loading) return <p>Carregando relatório...</p>;
+  // quando não há dados — permitir export mesmo sem linhas
+  if (!data || (Array.isArray(data) && data.length === 0)) return (
+    <div>
+      <p className="text-gray-600 mb-4">Nenhum dado disponível para este relatório.</p>
+      <div className="flex justify-end">
+        <Button onClick={onExport} className="flex items-center gap-2">
+          <FileDown className="h-4 w-4" /> Exportar PDF
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Renderizar tabela simples quando houver array de objetos
+  if (Array.isArray(data)) {
+    // Paginação e detalhes por linha
+    // esconder campos técnicos por padrão e mapear labels amigáveis
+    const HIDDEN_FIELDS = ['id', 'created_at', 'updated_at', 'senha', 'password', 'token'];
+    const LABEL_MAP: Record<string, string> = {
+      // crianças / gerais
+      nome: 'Nome',
+      idade: 'Idade',
+      status: 'Status',
+      creche_preferencia: 'Creche (preferência)',
+      responsavel: 'Responsável',
+      turma: 'Turma',
+      nome_turma: 'Turma',
+      data_nascimento: 'Data de Nascimento',
+      // contato / responsável
+      telefone: 'Telefone',
+      email: 'E-mail',
+      cpf: 'CPF',
+      situacao: 'Situação',
+      num_criancas_vinculadas: 'Crianças vinculadas',
+      // vagas / creches
+      creche: 'Creche',
+      vagas_ofertadas: 'Vagas ofertadas',
+      vagas_disponiveis: 'Vagas disponíveis',
+      ocupadas: 'Ocupadas',
+      disponiveis: 'Disponíveis',
+      criancas_na_fila: 'Crianças na fila',
+      ocupacao_percentual: 'Ocupação (%)',
+      capacidade_total: 'Capacidade total',
+      cidade: 'Cidade',
+      telefone_institucional: 'Telefone (creche)'
+    };
+
+    const allKeys = Array.from(new Set(data.flatMap((row: any) => Object.keys(row))));
+    // aplicar configuração por tipo se houver
+    const cfg = REPORT_COLUMN_CONFIG[tipo];
+    let keys = allKeys.filter(k => !HIDDEN_FIELDS.includes(k));
+    if (cfg) {
+      if (cfg.visible && cfg.visible.length) {
+        keys = cfg.visible.filter(k => allKeys.includes(k));
+      } else if (cfg.hidden && cfg.hidden.length) {
+        keys = keys.filter(k => !cfg.hidden!.includes(k));
+      }
+      // mescla labels do config
+      Object.assign(LABEL_MAP, cfg.labelMap || {});
+    }
+  const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+  const pageData = data.slice((page - 1) * pageSize, page * pageSize);
+  const displayKeys = (selectedCols && selectedCols.length) ? selectedCols : keys;
+
+    const toggleRow = (idx: number) => {
+      setExpandedRows(prev => ({ ...prev, [idx]: !prev[idx] }));
+    };
+
+    return (
+      <div>
+        <div className="mb-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">Colunas visíveis</div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setColsOpen(o => !o)} className="text-sm text-primary-600 underline">{colsOpen ? 'Fechar' : 'Editar'} colunas</button>
+              <button onClick={() => setSelectedCols(keys.slice())} className="text-sm px-2 py-1 border rounded">Selecionar tudo</button>
+              <button onClick={() => setSelectedCols([])} className="text-sm px-2 py-1 border rounded">Limpar</button>
+            </div>
+          </div>
+          {colsOpen && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {keys.map(k => (
+                <label key={k} className="inline-flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={selectedCols.includes(k)} onChange={(e) => {
+                    if (e.target.checked) setSelectedCols(prev => Array.from(new Set([...prev, k])));
+                    else setSelectedCols(prev => prev.filter(x => x !== k));
+                  }} />
+                  <span>{LABEL_MAP[k] ?? formatHeaderLabel(k)}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full table-auto">
+            <thead>
+              <tr>
+                {displayKeys.map((k) => (
+                  <th key={k} className="px-4 py-2 text-left text-sm text-gray-600">{LABEL_MAP[k] ?? formatHeaderLabel(k)}</th>
+                ))}
+                <th className="px-4 py-2 text-left text-sm text-gray-600">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageData.map((row: any, idx: number) => {
+                const globalIdx = (page - 1) * pageSize + idx;
+                return (
+                  <React.Fragment key={globalIdx}>
+                    <tr className="border-t">
+                      {displayKeys.map((k) => (
+                        <td key={k} className="px-4 py-2 text-sm text-gray-700">{renderFormattedValue(k, row[k])}</td>
+                      ))}
+                      <td className="px-4 py-2 text-sm text-gray-700">
+                        <div className="flex gap-2">
+                          <Button onClick={() => toggleRow(globalIdx)} variant="outline" className="text-xs">{expandedRows[globalIdx] ? 'Esconder' : 'Ver'}</Button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expandedRows[globalIdx] && (
+                      <tr>
+                        <td colSpan={keys.length + 1} className="bg-gray-50 p-4">
+                          <pre className="text-xs overflow-auto">{JSON.stringify(row, null, 2)}</pre>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Paginação simples */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-gray-600">Mostrando {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, data.length)} de {data.length}</div>
+          <div className="flex gap-2">
+            <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Anterior</Button>
+            <Button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Próxima</Button>
+          </div>
+        </div>
+
+          <div className="flex justify-end mt-4 gap-2">
+          <Button onClick={() => exportCSV(data, displayKeys)} className="flex items-center gap-2">
+            CSV
+          </Button>
+          <Button onClick={() => exportXLSX(data, displayKeys)} className="flex items-center gap-2">
+            XLSX
+          </Button>
+          <Button onClick={() => onExport()} className="flex items-center gap-2">
+            <FileDown className="h-4 w-4" /> Exportar PDF
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Caso seja objeto com métricas (por exemplo { dashboard: ..., indicadores: ... })
+  if (payloadRaw && typeof payloadRaw === 'object' && payloadRaw.dashboard) {
+    const dash = payloadRaw.dashboard;
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent>
+              <p className="text-sm text-gray-500">Total de Crianças</p>
+              <p className="text-2xl font-bold">{dash.total_criancas ?? dash.totalCriancas ?? '-'}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <p className="text-sm text-gray-500">Total de Creches</p>
+              <p className="text-2xl font-bold">{dash.total_creches ?? dash.totalCreches ?? '-'}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <p className="text-sm text-gray-500">Total de Responsáveis</p>
+              <p className="text-2xl font-bold">{dash.total_responsaveis ?? dash.totalResponsaveis ?? '-'}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <p className="text-sm text-gray-500">Faixa etária mais frequente</p>
+              <p className="text-2xl font-bold">{dash.faixa_etaria_mais_frequente ?? dash.most_frequent_age ?? '-'}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Se houver gráficos analíticos, renderizar */}
+        {payloadRaw.criancas_por_idade_chart && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Crianças por Faixa Etária</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <Pie
+                  data={{
+                    labels: payloadRaw.criancas_por_idade_chart.map((i: any) => `${i.faixa_etaria ?? i.idade} anos`),
+                    datasets: [{ data: payloadRaw.criancas_por_idade_chart.map((i: any) => i.total), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316'] }]
+                  }}
+                  options={pieChartOptions}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Exibir indicadores completos (se houver) */}
+        {payloadRaw.indicadores && (
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Indicadores</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <pre className="text-sm bg-gray-50 p-4 rounded">{JSON.stringify(payloadRaw.indicadores, null, 2)}</pre>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <Button onClick={onExport} className="flex items-center gap-2">
+            <FileDown className="h-4 w-4" /> Exportar PDF
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Caso seja outro objeto sem dashboard, exibir JSON para inspeção
+  return (
+    <div>
+      <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto">{JSON.stringify(payloadRaw ?? data, null, 2)}</pre>
+      <div className="flex justify-end mt-4">
+        <Button onClick={onExport} className="flex items-center gap-2">
+          <FileDown className="h-4 w-4" /> Exportar PDF
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+function formatHeaderLabel(k: string) {
+  // transforma snake_case e camelCase em labels amigáveis
+  if (!k) return '';
+  const fromSnake = k.replace(/_/g, ' ');
+  const spaced = fromSnake.replace(/([a-z])([A-Z])/g, '$1 $2');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function mapTipoToEndpoint(tipo: string) {
+  switch (tipo) {
+    case 'criancas': return 'geral-criancas';
+    case 'creches': return 'por-creche';
+    case 'responsaveis': return 'responsaveis';
+    case 'vagas': return 'vagas-demandas';
+    case 'transferencias': return 'transferencias';
+    case 'estatistico': return 'estatistico';
+    default: return 'geral-criancas';
+  }
+}
+
+
+
+// formatação por tipo de campo/coluna
+function formatPercent(v: any) {
+  if (v === null || v === undefined || v === '') return '';
+  const num = Number(v);
+  if (Number.isNaN(num)) return String(v);
+  return `${(num * 100).toFixed(2)}%`;
+}
+
+function formatPhone(v: any) {
+  if (!v) return '';
+  const s = String(v).replace(/\D/g, '');
+  if (s.length === 11) return s.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  if (s.length === 10) return s.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+  return v;
+}
+
+function formatCPF(v: any) {
+  if (!v) return '';
+  const s = String(v).replace(/\D/g, '');
+  if (s.length === 11) return s.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  return v;
+}
+
+function formatDateIso(v: any) {
+  if (!v) return '';
+  try {
+    return new Date(v).toLocaleDateString();
+  } catch {
+    return String(v);
+  }
+}
+
+// versão atualizada que formata com base no nome da chave quando possível
+function renderFormattedValue(key: string, value: any) {
+  if (value === null || value === undefined) return '';
+  const lower = key.toLowerCase();
+  if (lower.includes('percent') || lower.includes('ocupacao') || lower.includes('percentual')) return formatPercent(value);
+  if (lower.includes('cpf')) return formatCPF(value);
+  if (lower.includes('telefone') || lower.includes('tel')) return formatPhone(value);
+  if (/data_|_at$|_date|date/.test(lower) || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value))) return formatDateIso(value);
+  // objetos e arrays continuam com a heurística anterior
+  if (typeof value === 'object') {
+    if (value.nome) return value.nome;
+    if (value.id && value.nome === undefined) return String(value.id);
+    return JSON.stringify(value);
+  }
+  return String(value);
+}

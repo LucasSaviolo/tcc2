@@ -1,4 +1,4 @@
-import React from 'react';
+// React import removed (JSX runtime handles it)
 import { createBrowserRouter, RouterProvider, Navigate, redirect } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -13,6 +13,7 @@ import Criterios from './pages/Criterios';
 import FilaEsperaPage from './pages/FilaEspera';
 import AlocacoesPage from './pages/Alocacoes';
 import Relatorios from './pages/Relatorios';
+import Turmas from './pages/Turmas';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -85,6 +86,10 @@ const router = createBrowserRouter([
       {
         path: 'relatorios',
         element: <Relatorios />,
+      },
+      {
+        path: 'turmas',
+        element: <Turmas />,
       },
       {
         path: '*',

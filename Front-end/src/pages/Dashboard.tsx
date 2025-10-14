@@ -164,14 +164,24 @@ const Dashboard: React.FC = () => {
           <h3 className="text-lg font-medium text-gray-900 mb-6">Crianças Cadastradas por Idade</h3>
           {chartData && (
             <div className="h-80">{/* Aumentei de h-64 para h-80 */}
-              <Bar 
+              {/* Se todos os pontos forem zero, mostramos uma mensagem amigável */}
+              {Array.isArray(chartData.datasets?.[0]?.data) && chartData.datasets[0].data.every((v: number) => v === 0) ? (
+                <div className="h-80 flex items-center justify-center text-gray-500">
+                  <div className="text-center">
+                    <div className="text-lg font-semibold">Sem dados suficientes para exibir o gráfico</div>
+                    <div className="text-sm mt-2">Nenhuma alocação registrada nos últimos meses.</div>
+                  </div>
+                </div>
+              ) : (
+                <Bar 
                 data={{
-                  labels: ['0', '1', '2', '3', '4', '5'], // Idades fixas de 0 a 5 anos
+                  // Usar labels e datasets fornecidos pelo backend (diretamente do banco)
+                  labels: chartData.labels || [],
                   datasets: [
                     {
-                      label: 'Crianças Cadastradas por Idade',
-                      data: chartData.datasets[0].data.slice(0, 6), // Garantir apenas 6 valores
-                      backgroundColor: chartData.datasets[0].backgroundColor || [
+                      label: chartData.datasets?.[0]?.label || 'Dados',
+                      data: chartData.datasets?.[0]?.data || [],
+                      backgroundColor: chartData.datasets?.[0]?.backgroundColor || [
                         'rgba(99, 102, 241, 0.6)',
                         'rgba(16, 185, 129, 0.6)',
                         'rgba(245, 158, 11, 0.6)',
@@ -179,7 +189,7 @@ const Dashboard: React.FC = () => {
                         'rgba(139, 92, 246, 0.6)',
                         'rgba(236, 72, 153, 0.6)'
                       ],
-                      borderColor: chartData.datasets[0].borderColor || [
+                      borderColor: chartData.datasets?.[0]?.borderColor || [
                         'rgb(99, 102, 241)',
                         'rgb(16, 185, 129)',
                         'rgb(245, 158, 11)',
@@ -343,11 +353,12 @@ const Dashboard: React.FC = () => {
                   data={{
                     labels: ['Ocupadas', 'Disponíveis'],
                     datasets: [
-                      {
-                        data: [
-                          stats ? (stats.capacidade_total - stats.total_vagas) : 0,
-                          stats?.total_vagas || 0
-                        ],
+                        {
+                          data: [
+                            // Ocupadas = capacidade_total - total_vagas (ambos fornecidos pelo backend)
+                            (stats?.capacidade_total ?? 0) - (stats?.total_vagas ?? 0),
+                            stats?.total_vagas ?? 0
+                          ],
                         backgroundColor: [
                           'rgba(99, 102, 241, 0.5)',
                           'rgba(16, 185, 129, 0.5)',

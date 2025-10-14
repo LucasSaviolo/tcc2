@@ -23,12 +23,22 @@ class StoreCrecheRequest extends FormRequest
     {
         return [
             'nome' => 'required|string|max:255|unique:creches,nome',
+            'logradouro' => 'required|string|max:255',
+            'numero' => 'required|string|max:50',
+            'bairro' => 'required|string|max:100',
+            'cep' => 'required|string|max:20',
+            'cidade' => 'required|string|max:100',
             'endereco' => 'required|string|max:500',
             'telefone' => 'required|string|max:20',
+            'email_institucional' => 'required|email|max:255',
+            'nome_responsavel' => 'required|string|max:255',
+            'email_responsavel' => 'required|email|max:255',
             'capacidade_total' => 'required|integer|min:1|max:1000',
             'vagas_disponiveis' => 'required|integer|min:0|lte:capacidade_total',
             'idades_aceitas' => 'required|array|min:1',
             'idades_aceitas.*' => 'integer|between:0,6',
+            'turnos_disponiveis' => 'required|array|min:1',
+            'turnos_disponiveis.*' => 'in:manha,tarde,integral',
             'ativa' => 'sometimes|boolean',
         ];
     }

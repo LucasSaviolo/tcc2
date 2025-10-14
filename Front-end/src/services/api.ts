@@ -23,6 +23,7 @@ import type {
   Criterio,
   CriterioFormData,
   CriterioCrianca,
+  Turma,
 } from '../types';
 
 class ApiService {
@@ -126,16 +127,9 @@ class ApiService {
       }
       return response.data.data;
     } catch (error) {
-      // Fallback com dados simulados para demonstração
-      console.warn('Usando dados simulados para as estatísticas do dashboard');
-      return {
-        total_fila: 45,
-        total_vagas: 85,
-        total_creches: 6,
-        capacidade_total: 230,
-        alocacoes_mes: 18,
-        crescimento_fila: 12
-      };
+      console.error('Erro ao obter estatísticas do dashboard:', error);
+      // Propaga o erro para que a UI trate a ausência de dados vindo do backend
+      throw error;
     }
   }
 
@@ -147,33 +141,8 @@ class ApiService {
       }
       return response.data.data;
     } catch (error) {
-      // Fallback com dados simulados para demonstração
-      console.warn('Usando dados simulados para o gráfico de distribuição por idade');
-      return {
-        labels: ['0', '1', '2', '3', '4', '5'],
-        datasets: [
-          {
-            label: 'Crianças Cadastradas',
-            data: [8, 15, 23, 28, 19, 12], // Distribuição mais realista com pico em 3 anos
-            backgroundColor: [
-              'rgba(99, 102, 241, 0.6)',
-              'rgba(16, 185, 129, 0.6)',
-              'rgba(245, 158, 11, 0.6)',
-              'rgba(239, 68, 68, 0.6)',
-              'rgba(139, 92, 246, 0.6)',
-              'rgba(236, 72, 153, 0.6)'
-            ],
-            borderColor: [
-              'rgb(99, 102, 241)',
-              'rgb(16, 185, 129)',
-              'rgb(245, 158, 11)',
-              'rgb(239, 68, 68)',
-              'rgb(139, 92, 246)',
-              'rgb(236, 72, 153)'
-            ]
-          }
-        ]
-      };
+      console.error('Erro ao obter dados do gráfico do dashboard:', error);
+      throw error;
     }
   }
 
@@ -346,6 +315,55 @@ class ApiService {
     return response.data.data;
   }
 
+  // Turmas Methods
+  async getTurmas(params?: PaginationParams & { creche_id?: number }): Promise<PaginatedResponse<Turma>> {
+    const response: AxiosResponse<ApiResponse<PaginatedResponse<Turma>>> = await this.api.get('/turmas', { params });
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Falha ao obter lista de turmas');
+    }
+
+    // Normaliza a resposta para PaginatedResponse
+    if (Array.isArray(response.data.data)) {
+      return {
+        data: response.data.data,
+        meta: { pagination: response.data.meta?.pagination || { current_page: 1, per_page: response.data.data.length, total: response.data.data.length, last_page: 1, from: 1, to: response.data.data.length } }
+      } as PaginatedResponse<Turma>;
+    }
+
+    return response.data.data as PaginatedResponse<Turma>;
+  }
+
+  async getTurma(id: number): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.get(`/turmas/${id}`);
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Falha ao obter turma');
+    }
+    return response.data.data;
+  }
+
+  async createTurma(data: any): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.post('/turmas', data);
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Falha ao criar turma');
+    }
+    return response.data.data;
+  }
+
+  async updateTurma(id: number, data: any): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.put(`/turmas/${id}`, data);
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Falha ao atualizar turma');
+    }
+    return response.data.data;
+  }
+
+  async deleteTurma(id: number): Promise<void> {
+    const response = await this.api.delete(`/turmas/${id}`);
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Falha ao deletar turma');
+    }
+  }
+
   // Fila de Espera Methods
   async getFilaEspera(params?: FilterParams): Promise<PaginatedResponse<FilaEspera>> {
     const response: AxiosResponse<ApiResponse<PaginatedResponse<FilaEspera>>> = await this.api.get('/fila-espera', { params });
@@ -410,15 +428,9 @@ class ApiService {
       return response.data.data;
     } catch (error: any) {
       console.error('❌ Erro na alocação:', error);
-      console.error('- Status:', error.response?.status);
-      console.error('- Data:', error.response?.data);
+      // Retorna erro para o UI lidar com falta de dados (no backend deve existir a rota)
       throw error;
     }
-  }
-
-  async getHistoricoAlocacoes(): Promise<Alocacao[]> {
-    const response: AxiosResponse<ApiResponse<Alocacao[]>> = await this.api.get('/alocacoes/historico');
-    return response.data.data;
   }
 
   // Responsáveis Methods

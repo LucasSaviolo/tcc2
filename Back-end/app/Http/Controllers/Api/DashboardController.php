@@ -61,8 +61,9 @@ class DashboardController extends Controller
             $alocacoesMes = Alocacao::whereMonth('data_inicio', $data->month)
                 ->whereYear('data_inicio', $data->year)
                 ->count();
-            
-            $dados[] = $alocacoesMes > 0 ? $alocacoesMes : rand(30, 90);
+
+            // Usar o valor real vindo do banco (0 quando não houver alocações nesse mês)
+            $dados[] = $alocacoesMes;
         }
 
         $chartData = [

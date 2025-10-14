@@ -86,7 +86,27 @@ export interface Creche {
   vagas_disponiveis: number;
   alunos_matriculados?: number; // Campo para simular diferentes ocupações
   idades_aceitas: number[];
+  logradouro?: string;
+  numero?: string | number;
+  bairro?: string;
+  cep?: string;
+  cidade?: string;
+  email_institucional?: string;
+  nome_responsavel?: string;
+  email_responsavel?: string;
+  turnos_disponiveis?: string[] | string;
   ativa: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Turma {
+  id: number;
+  nome: string;
+  creche_id?: number;
+  creche?: Creche;
+  capacidade?: number;
+  vagas_disponiveis?: number;
   created_at?: string;
   updated_at?: string;
 }

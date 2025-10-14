@@ -17,6 +17,9 @@ class RelatorioController extends Controller
      */
     public function relatorioGeralCriancas(Request $request)
     {
+        // Log temporário para debugging: registrar que o método foi chamado e timestamp
+        \Log::info('relatorioGeralCriancas called - file version timestamp: ' . now()->toDateTimeString());
+        
         $anoLetivo = $request->input('ano_letivo', date('Y'));
         $faixaEtaria = $request->input('faixa_etaria');
         $status = $request->input('status');
@@ -56,14 +59,28 @@ class RelatorioController extends Controller
                 'distribuicao_status' => $distribuicaoStatus,
                 'faixa_etaria_mais_frequente' => $faixaEtariaMaisFrequente
             ],
-            'tabela_simplificada' => $criancas->map(function ($crianca) {
-                return [
-                    'nome' => $crianca->nome,
-                    'idade' => $crianca->idade,
-                    'status' => $crianca->status,
-                    'creche_preferencia' => optional($crianca->preferenciasCreche->first()->creche)->nome
-                ];
-            }),
+            'tabela_simplificada' => (function() use ($criancas) {
+                $rows = [];
+                foreach ($criancas as $crianca) {
+                    $crecheNome = null;
+                    $pref = null;
+                    if (isset($crianca->preferenciasCreche) && $crianca->preferenciasCreche) {
+                        // evita chamar methods em null
+                        $firstPref = $crianca->preferenciasCreche->first();
+                        if ($firstPref && isset($firstPref->creche) && $firstPref->creche) {
+                            $crecheNome = $firstPref->creche->nome;
+                        }
+                    }
+
+                    $rows[] = [
+                        'nome' => $crianca->nome,
+                        'idade' => $crianca->idade,
+                        'status' => $crianca->status,
+                        'creche_preferencia' => $crecheNome
+                    ];
+                }
+                return $rows;
+            })(),
             'dados_completos' => $criancas
         ]);
     }

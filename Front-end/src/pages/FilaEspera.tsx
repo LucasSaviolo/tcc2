@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Filter, RefreshCw, ChevronUp, ChevronDown, Info } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -7,8 +7,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
-import { hasNestedProperty } from '../utils/objectUtils';
-import type { FilterParams, FilaEspera } from '../types';
+import type { FilterParams } from '../types';
 
 const FilaEsperaPage: React.FC = () => {
   const queryClient = useQueryClient();

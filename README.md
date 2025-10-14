@@ -1,3 +1,73 @@
+Projeto TCC - Sistema de Gestão e Alocação de Creches
+===============================================
+
+Descrição
+--------
+
+Este repositório contém um sistema completo para gerenciar creches, crianças, responsáveis, fila de espera e alocação automática. O sistema é composto por duas partes principais:
+
+- Back-end: API em Laravel (PHP) com endpoints para relatórios, dashboard, CRUDs e geração de PDFs.
+- Front-end: SPA em React + TypeScript usando Vite e Tailwind CSS.
+
+Banco de dados
+-------------
+
+O projeto usa MySQL. Para desenvolvimento local, as configurações padrão esperadas neste repositório são:
+
+- Nome do banco: testetcc
+- Usuário: root
+- Senha: (vazia)
+
+Endpoints principais
+--------------------
+
+- API (Laravel): http://127.0.0.1:8000/api
+  - /api/relatorios/dashboard  - dashboard principal
+  - /api/relatorios/{tipo}     - endpoints de relatórios
+  - /api/dashboard/stats       - estatísticas do dashboard
+  - /api/dashboard/chart       - dados do gráfico do dashboard
+  - /api/dashboard/recent      - ações recentes
+
+- Frontend (Vite): http://localhost:3000/
+
+Rodando localmente
+------------------
+
+1) Back-end
+
+ - Instale dependências PHP/Composer: composer install
+ - Configure seu .env (copie .env.example e ajuste DB_DATABASE=testetcc, DB_USERNAME=root, DB_PASSWORD=)
+ - Rode migrações (se desejar): php artisan migrate
+ - Inicie o servidor de desenvolvimento: php artisan serve --host=127.0.0.1 --port=8000
+
+2) Front-end
+
+ - Entre na pasta Front-end e instale dependências: npm install
+ - Inicie o dev server: npm run dev (ou npm run build para produção)
+ - Abra no navegador: http://localhost:3000/
+
+Notas de implementação
+----------------------
+
+- O dashboard e os relatórios consomem dados diretamente do banco de dados via endpoints API. Os cards, gráficos e tabelas exibem os valores retornados pelo backend (sem dados simulados ou aleatórios).
+- Exportação para CSV/XLSX/PDF está disponível na página de Relatórios.
+- Seleção de colunas nos relatórios é persistida no localStorage por relatório.
+
+Histórico de versões (resumo)
+----------------------------
+
+- v0.1.0 - Estrutura inicial do projeto (Back-end Laravel e Front-end React).
+- v0.2.0 - Implementação dos modelos principais (Creche, Crianca, Responsavel, Turma) e endpoints básicos.
+- v0.3.0 - Relatórios e dashboard: endpoints e páginas iniciais.
+- v0.4.0 - Exportação CSV/XLSX/PDF e seleção de colunas persistente no frontend.
+- v0.5.0 - Correções: remoção de dados aleatórios no backend para usar dados reais do banco; melhorias de formatação (CPF, telefone, percentuais) e ajustes de UI.
+
+Se precisar de um changelog mais detalhado, posso gerar um a partir do histórico de commits.
+
+Contato
+-------
+
+Se for necessário suporte, descreva a máquina (SO), versões do PHP/Node e quaisquer logs/erros relevantes.
 # Sistema de Gerenciamento de Creches - TCC
 
 Sistema completo para gerenciamento de creches com funcionalidades de cadastro de crianças, responsáveis, alocação de vagas e geração de relatórios.

@@ -106,6 +106,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Critérios - CRUD completo
     Route::apiResource('criterios', CriterioController::class);
     
+    // Turmas - CRUD completo
+    Route::apiResource('turmas', App\Http\Controllers\Api\TurmaController::class);
+    
     // Fila de Espera
     Route::prefix('fila-espera')->group(function () {
         Route::get('/', [FilaEsperaController::class, 'index']);

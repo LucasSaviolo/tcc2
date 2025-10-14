@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react';
 import { apiService } from '../services/api';
@@ -7,7 +7,6 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
 import CriancaForm from '../components/business/CriancaForm';
-import { hasNestedProperty } from '../utils/objectUtils';
 import type { Crianca, PaginationParams } from '../types';
 
 const Criancas: React.FC = () => {

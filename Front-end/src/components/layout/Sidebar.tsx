@@ -22,6 +22,7 @@ const navigation = [
   { name: 'Crianças', href: '/criancas', icon: Users },
   { name: 'Responsáveis', href: '/responsaveis', icon: UserPlus },
   { name: 'Creches', href: '/creches', icon: Building },
+  { name: 'Turmas', href: '/turmas', icon: Clock },
   { name: 'Critérios', href: '/criterios', icon: Settings },
   { name: 'Fila de Espera', href: '/fila', icon: Clock },
   { name: 'Alocações', href: '/alocacoes', icon: UserCheck },

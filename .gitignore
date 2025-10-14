@@ -43,4 +43,13 @@ Thumbs.db
 
 # Arquivos temporários
 *.tmp
-*.temp
+*.tempBack-end/resp_*.json
+Back-end/tmp-*
+Back-end/*_test.php
+Back-end/tmp-api-*.cjs
+Back-end/tmp-api-*.js
+Back-end/turma_payload.json
+scripts/
+Front-end/ALTERACOES_STATUS_CRECHES.md
+Front-end/FEATURES.md
+Front-end/README.md
