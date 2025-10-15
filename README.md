@@ -95,16 +95,10 @@ Observações de implementação
 - Métricas importantes (ex.: total de crianças, total na fila) têm definições explícitas no backend — evite substituir essas fontes por cálculos client-side.
 - Não mantenha scripts ad-hoc no repositório principal. Use seeders para popular dados de teste e comandos/artisan para executar processos controlados.
 
-Contribuição e fluxo de trabalho
---------------------------------
-
-- Fork -> branch feature -> commit claro e objetivo -> pull request para `main`.
-- Escreva mensagens de commit concisas e com escopo claro.
-
 Contato
 -------
 
 Se precisar de ajuda para rodar localmente ou para entender a base de dados, abra uma issue descrevendo o passo a passo que você seguiu e o problema observado.
 
 --
-Versão atual: v1.0.0
+Versão atual: v1.1.0
