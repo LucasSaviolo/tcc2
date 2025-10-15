@@ -27,127 +27,84 @@ Endpoints principais
   - /api/dashboard/stats       - estatísticas do dashboard
   - /api/dashboard/chart       - dados do gráfico do dashboard
   - /api/dashboard/recent      - ações recentes
+# Sistema de Gestão e Alocação de Creches (TCC)
 
-- Frontend (Vite): http://localhost:3000/
+Descrição
+---------
 
-Rodando localmente
-------------------
+Aplicação para gerenciar creches, responsáveis, turmas, fila de espera e alocação automática de vagas. O projeto é dividido em:
+
+- Back-end: API em Laravel (PHP) com endpoints para CRUDs, relatórios e processos de alocação.
+- Front-end: SPA em React + TypeScript (Vite) com interface para dashboards, relatórios e administração.
+
+Principais requisitos
+---------------------
+
+- PHP 8.1+ e Composer
+- Node.js 16+/npm ou pnpm
+- MySQL (ou outro banco configurado via .env)
+
+Executando localmente
+---------------------
 
 1) Back-end
 
- - Instale dependências PHP/Composer: composer install
- - Configure seu .env (copie .env.example e ajuste DB_DATABASE=testetcc, DB_USERNAME=root, DB_PASSWORD=)
- - Rode migrações (se desejar): php artisan migrate
- - Inicie o servidor de desenvolvimento: php artisan serve --host=127.0.0.1 --port=8000
-
-2) Front-end
-
- - Entre na pasta Front-end e instale dependências: npm install
- - Inicie o dev server: npm run dev (ou npm run build para produção)
- - Abra no navegador: http://localhost:3000/
-
-Notas de implementação
-----------------------
-
-- O dashboard e os relatórios consomem dados diretamente do banco de dados via endpoints API. Os cards, gráficos e tabelas exibem os valores retornados pelo backend (sem dados simulados ou aleatórios).
-- Exportação para CSV/XLSX/PDF está disponível na página de Relatórios.
-- Seleção de colunas nos relatórios é persistida no localStorage por relatório.
-
-Histórico de versões (resumo)
-----------------------------
-
-- v0.1.0 - Estrutura inicial do projeto (Back-end Laravel e Front-end React).
-- v0.2.0 - Implementação dos modelos principais (Creche, Crianca, Responsavel, Turma) e endpoints básicos.
-- v0.3.0 - Relatórios e dashboard: endpoints e páginas iniciais.
-- v0.4.0 - Exportação CSV/XLSX/PDF e seleção de colunas persistente no frontend.
-- v0.5.0 - Correções: remoção de dados aleatórios no backend para usar dados reais do banco; melhorias de formatação (CPF, telefone, percentuais) e ajustes de UI.
-
--------
-
-# Sistema de Gerenciamento de Creches - TCC
-
-Sistema completo para gerenciamento de creches com funcionalidades de cadastro de crianças, responsáveis, alocação de vagas e geração de relatórios.
-
-## 🚀 Tecnologias
-
-### Backend
-- **Laravel 11** - Framework PHP
-- **SQLite** - Banco de dados
-- **Sanctum** - Autenticação API
-- **Swagger/OpenAPI** - Documentação da API
-
-### Frontend
-- **React 18** - Biblioteca JavaScript
-- **TypeScript** - Tipagem estática
-- **Tailwind CSS** - Framework CSS
-- **Vite** - Build tool
-
-## 📁 Estrutura do Projeto
-
-```
-├── Back-end/          # API Laravel
-├── Front-end/         # Aplicação React
-└── README.md
-```
-
-## ⚡ Como executar
-
-### Backend (Laravel)
-```bash
+```powershell
 cd Back-end
 composer install
 cp .env.example .env
+# Ajuste as variáveis de ambiente (DB, MAIL, etc.) no .env
 php artisan key:generate
 php artisan migrate --seed
-php artisan serve
+php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-### Frontend (React)
-```bash
+2) Front-end
+
+```powershell
 cd Front-end
 npm install
 npm run dev
+# A aplicação ficará disponível em http://localhost:3000
 ```
 
-## 📋 Funcionalidades Implementadas
+Seeders e testes locais
+-----------------------
 
-### ✅ Gerenciamento
-- [x] Cadastro e listagem de crianças
-- [x] Visualização detalhada de crianças (modal)
-- [x] Cadastro de responsáveis
-- [x] Cadastro de creches
-- [x] Sistema de critérios de prioridade
+- O seeder `FullDummySeeder` popula dados realistas (creches, turmas, responsáveis, crianças, preferências). Use `php artisan db:seed --class=FullDummySeeder` para popular a base de desenvolvimento.
+- Há comandos auxiliares para testes de fila e alocação. Para recalcular a fila e executar alocações:
 
-### ✅ Relatórios
-- [x] Relatório geral de crianças
-- [x] Relatório por creche
-- [x] Relatório de responsáveis
-- [x] Relatório de vagas e demandas
-- [x] Relatório de transferências
-- [x] Relatório estatístico
-- [x] Dashboard principal com indicadores
+```powershell
+php artisan fila:process --recalcular
+php artisan fila:process --alocar
+```
 
-### ✅ Exportações
-- [] Exportação PDF de todos os relatórios
-- [x] Interface para seleção de relatórios
+API — endpoints relevantes
+-------------------------
 
-## 🔄 Status do Desenvolvimento
+- GET /api/dashboard/stats       -> Estatísticas do painel principal
+- GET /api/dashboard/chart       -> Dados do gráfico do dashboard
+- GET /api/relatorios/dashboard  -> Payload detalhado usado na página de relatórios
+- GET /api/criancas              -> Listagem de crianças (paginada)
+- POST /api/alocacoes/executar   -> Executa o algoritmo de alocação (produção)
 
-- **Backend**: API completa com todos os endpoints funcionais
-- **Frontend**: Interface funcional com todas as telas implementadas
-- **Integração**: Modal de visualização de crianças integrado com API
+Observações de implementação
+----------------------------
 
-## 🛠️ Próximos Passos
+- O frontend consome os dados diretamente da API; os relatórios e cards exibem os valores retornados pelo backend.
+- Métricas importantes (ex.: total de crianças, total na fila) têm definições explícitas no backend — evite substituir essas fontes por cálculos client-side.
+- Não mantenha scripts ad-hoc no repositório principal. Use seeders para popular dados de teste e comandos/artisan para executar processos controlados.
 
-- [ ] Sistema completo de autenticação no frontend
-- [ ] Validações mais robustas
-- [ ] Testes
+Contribuição e fluxo de trabalho
+--------------------------------
 
-## 📝 Notas de Desenvolvimento
+- Fork -> branch feature -> commit claro e objetivo -> pull request para `main`.
+- Escreva mensagens de commit concisas e com escopo claro.
 
-Este projeto foi desenvolvido como Trabalho de Conclusão de Curso (TCC) e implementa um sistema completo de gerenciamento para creches municipais.
+Contato
+-------
 
-### Versão Atual: v1.0.0
-- Sistema básico funcionando
-- Todos os relatórios implementados
-- Modal de visualização de crianças funcional
+Se precisar de ajuda para rodar localmente ou para entender a base de dados, abra uma issue descrevendo o passo a passo que você seguiu e o problema observado.
+
+--
+Versão atual: v1.0.0
