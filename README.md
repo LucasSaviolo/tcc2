@@ -42,7 +42,7 @@ Principais requisitos
 
 - PHP 8.1+ e Composer
 - Node.js 16+/npm ou pnpm
-- MySQL (ou outro banco configurado via .env)
+- MySQL
 
 Executando localmente
 ---------------------
@@ -84,10 +84,6 @@ Observações de implementação
 - Métricas importantes (ex.: total de crianças, total na fila) têm definições explícitas no backend — evite substituir essas fontes por cálculos client-side.
 - Não mantenha scripts ad-hoc no repositório principal. Use seeders para popular dados de teste e comandos/artisan para executar processos controlados.
 
-Contato
 -------
-
-Se precisar de ajuda para rodar localmente ou para entender a base de dados, abra uma issue descrevendo o passo a passo que você seguiu e o problema observado.
-
 --
 Versão atual: v1.1.0
