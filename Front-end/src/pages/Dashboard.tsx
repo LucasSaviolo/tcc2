@@ -131,6 +131,12 @@ const Dashboard: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
+          title="Total de Crianças"
+          value={(stats as any)?.total_criancas ?? (stats as any)?.totalCriancas ?? 0}
+          icon={<Users className="h-6 w-6" />}
+          color="blue"
+        />
+        <StatsCard
           title="Total na Fila"
           value={stats?.total_fila || 0}
           change={stats?.crescimento_fila}
@@ -331,6 +337,7 @@ const Dashboard: React.FC = () => {
                   }
                 ]}
               />
+              )}
             </div>
           )}
           {chartLoading && (

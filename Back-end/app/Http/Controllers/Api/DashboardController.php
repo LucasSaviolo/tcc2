@@ -9,6 +9,7 @@ use App\Models\Crianca;
 use App\Models\Creche;
 use App\Models\FilaEspera;
 use App\Models\Alocacao;
+use App\Models\Turma;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -16,13 +17,23 @@ class DashboardController extends Controller
 {
     public function stats(): JsonResponse
     {
-        $totalFila = Crianca::whereDoesntHave('alocacao', function($query) {
-            $query->where('status', 'ativa');
-        })->count();
-        
-        $totalVagas = Creche::where('ativa', true)->sum('vagas_disponiveis') ?? 0;
+        // Total de crianças cadastradas no ano letivo atual (fonte canônica para "total de crianças")
+        $totalCriancas = Crianca::where('ano_letivo', date('Y'))->count();
+
+        // Total na fila (usar mesmo critério dos relatórios: status 'aguardando_vaga' no ano letivo atual)
+        $totalFila = Crianca::where('status', 'aguardando_vaga')
+            ->where('ano_letivo', date('Y'))
+            ->count();
+        // Calcular capacidade total a partir das turmas ativas (fonte canônica)
+        $capacidadeTotal = Turma::where('ativa', true)->sum('capacidade') ?? 0;
+
+        // Contar crianças matriculadas (ocupadas)
+        $ocupadas = Crianca::where('status', 'matriculada')->count();
+
+        // Vagas disponíveis = capacidade total - ocupadas
+        $totalVagas = max(0, $capacidadeTotal - $ocupadas);
+
         $totalCreches = Creche::where('ativa', true)->count();
-        $capacidadeTotal = Creche::where('ativa', true)->sum('capacidade_total') ?? 0;
         
         $alocacoesMes = Alocacao::whereMonth('data_inicio', Carbon::now()->month)
             ->whereYear('data_inicio', Carbon::now()->year)
@@ -34,6 +45,8 @@ class DashboardController extends Controller
         $crescimentoFila = $mesAnterior == 0 ? 0.0 : round((($mesAtual - $mesAnterior) / $mesAnterior) * 100, 1);
 
         $stats = [
+            // manter chaves existentes para compatibilidade
+            'total_criancas' => $totalCriancas,
             'total_fila' => $totalFila,
             'total_vagas' => $totalVagas,
             'total_creches' => $totalCreches,

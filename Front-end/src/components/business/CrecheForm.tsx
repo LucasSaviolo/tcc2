@@ -4,6 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import { apiService } from '../../services/api';
 import { useCreche } from '../../hooks/useMutations';
 import type { CrecheFormData } from '../../types';
 
@@ -37,8 +38,24 @@ const CrecheForm: React.FC<CrecheFormProps> = ({ initialData, onSuccess, onCance
     }
   });
 
-  const idades = [0, 1, 2, 3, 4, 5];
+  const [idades, setIdades] = React.useState<number[]>([]);
   const idades_selecionadas = watch('idades_aceitas') || [];
+
+  React.useEffect(() => {
+    let mounted = true;
+    apiService.getMeta()
+      .then((meta: { idades: number[]; turnos: string[] }) => {
+        if (mounted && meta && Array.isArray(meta.idades)) {
+          setIdades(meta.idades);
+        }
+      })
+      .catch((err: unknown) => {
+        console.error('Erro ao carregar metadados:', err);
+        // fallback local mínimo
+        setIdades([0,1,2,3,4,5]);
+      });
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     if (initialData) {

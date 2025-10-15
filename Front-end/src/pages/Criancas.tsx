@@ -36,20 +36,8 @@ const Criancas: React.FC = () => {
   // Mutation para desativar criança
   const desativarCriancaMutation = useMutation({
     mutationFn: async (criancaId: number) => {
-      const response = await fetch(`http://127.0.0.1:8000/api/criancas-public/${criancaId}`, {
-        method: 'DELETE',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao desativar criança');
-      }
-      
-      return response.json();
+      // Usar apiService para manter consistência (interceptors, baseURL)
+      await apiService.deleteCrianca(criancaId);
     },
     onSuccess: () => {
       // Invalidar e recarregar a lista de crianças
@@ -72,19 +60,8 @@ const Criancas: React.FC = () => {
 
   const handleViewCrianca = async (criancaId: number) => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/criancas-public/${criancaId}`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      setViewCriancaData(result.data);
+      const result = await apiService.getCrianca(criancaId);
+      setViewCriancaData(result);
       setShowViewModal(true);
     } catch (error) {
       console.error('Erro ao carregar dados da criança:', error);

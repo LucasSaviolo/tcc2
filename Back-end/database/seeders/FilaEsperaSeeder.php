@@ -48,11 +48,13 @@ class FilaEsperaSeeder extends Seeder
             FilaEspera::create([
                 'crianca_id' => $crianca->id,
                 'pontuacao_total' => rand(10, 100),
-                'criterios_aplicados' => json_encode([
+                // armazenar como array; o model faz o cast para JSON
+                'criterios_aplicados' => [
                     ['criterio' => 'Renda Familiar', 'pontuacao' => rand(5, 20)],
                     ['criterio' => 'Mãe Trabalhadora', 'pontuacao' => rand(3, 10)]
-                ]),
-                'posicao_fila' => $index + 1,
+                ],
+                // deixar 0 para que a reordenação calcule a posição de forma determinística
+                'posicao_fila' => 0,
                 'data_inscricao' => $dataInscricao->toDateString(),
                 'data_cadastro' => $dataInscricao,
                 'pontuacao' => rand(10, 100),

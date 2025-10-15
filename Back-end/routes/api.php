@@ -52,6 +52,20 @@ Route::delete('criancas-public/{crianca}', [CriancaController::class, 'destroy']
 Route::get('responsaveis-public', [ResponsavelController::class, 'index']);
 Route::get('criterios', [CriterioController::class, 'index']);
 
+// Metadados do sistema (idades aceitas e turnos disponíveis)
+Route::get('meta', function () {
+    $idades = range(0, 5);
+    $turnos = \App\Models\Creche::all()->pluck('turnos_disponiveis')->flatten()->unique()->values()->all();
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'idades' => $idades,
+            'turnos' => $turnos,
+        ],
+    ]);
+});
+
 // Rotas de relatórios (temporariamente sem autenticação para teste)
 Route::prefix('relatorios')->group(function () {
     // Dashboard principal

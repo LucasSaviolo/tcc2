@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiService } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -63,25 +64,32 @@ const Relatorios: React.FC = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/relatorios/dashboard');
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await apiService.getRelatorioDashboard();
+
+      // debug: logar payload recebido para diagnosticar problemas
+      // (ex.: resposta direta ou envelopada em { dashboard: ... })
+      // eslint-disable-next-line no-console
+      console.debug('Relatorio dashboard payload:', data);
+
+      // Normaliza payloads que venham como { dashboard: {...}, creches: [...] }
+      let payload: any = data;
+      if (payload && typeof payload === 'object' && payload.dashboard) {
+        payload = payload.dashboard;
       }
-      const data = await response.json();
-      
-      // Usar APENAS os dados vindos do backend
+
+      // Usar APENAS os dados vindos do backend (com fallback seguro)
       setDashboardData({
-        totalCriancas: data.totalCriancas || 0,
-        totalCreches: data.totalCreches || 0,
-        totalResponsaveis: data.totalResponsaveis || 0,
-        totalVagasDisponiveis: data.totalVagasDisponiveis || 0,
-        criancasPorIdade: data.criancasPorIdade || [],
-        criancasPorStatus: data.criancasPorStatus || [],
-        crechesPorRegiao: data.crechesPorRegiao || []
+        totalCriancas: payload.totalCriancas ?? payload.total_criancas ?? 0,
+        totalCreches: payload.totalCreches ?? payload.total_creches ?? 0,
+        totalResponsaveis: payload.totalResponsaveis ?? payload.total_responsaveis ?? 0,
+        totalVagasDisponiveis: payload.totalVagasDisponiveis ?? payload.total_vagas_disponiveis ?? 0,
+  criancasPorIdade: (payload.criancasPorIdade ?? payload.criancas_por_idade_chart ?? payload.criancas_por_idade) || [],
+  criancasPorStatus: (payload.criancasPorStatus ?? payload.criancas_por_status) || [],
+  crechesPorRegiao: (payload.crechesPorRegiao ?? payload.creches_por_regiao) || []
       });
 
-      // Definir as creches vindas do backend para o filtro
-      setCreches(data.creches || []);
+      // Definir as creches vindas do backend para o filtro (procura em ambos locais)
+      setCreches(data.creches || payload.creches || []);
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
       // Em caso de erro, definir dados vazios em vez de dados mockados
@@ -108,8 +116,7 @@ const Relatorios: React.FC = () => {
       if (filtroDataInicio) params.append('data_inicio', filtroDataInicio);
       if (filtroDataFim) params.append('data_fim', filtroDataFim);
 
-      const response = await fetch(`http://127.0.0.1:8000/api/relatorios/pdf/${tipo}?${params}`);
-      const blob = await response.blob();
+  const blob = await apiService.exportRelatorioPdf(tipo, Object.fromEntries(params));
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -157,14 +164,16 @@ const Relatorios: React.FC = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id)}
+                aria-current={activeTab === tab.id ? 'true' : undefined}
                 className={`${
                   activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
+                    ? 'border-indigo-500 text-indigo-600 font-semibold'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+                } whitespace-nowrap py-4 px-1 border-b-2 text-sm flex items-center gap-2`}
               >
-                <tab.icon className="h-4 w-4" />
+                <tab.icon className={`h-4 w-4 ${activeTab === tab.id ? 'text-indigo-600' : 'text-gray-400'}`} />
                 {tab.name}
               </button>
             ))}
@@ -458,14 +467,8 @@ const ReportTab: React.FC<{
         if (dataInicio) params.append('data_inicio', dataInicio);
         if (dataFim) params.append('data_fim', dataFim);
 
-        const url = `http://127.0.0.1:8000/api/relatorios/${mapTipoToEndpoint(tipo)}?${params.toString()}`;
-          const res = await fetch(url);
-          if (!res.ok) {
-            // Captura erros do servidor e mostra mensagem amigável
-            const text = await res.text();
-            throw new Error(`Status ${res.status}: ${text.substring(0, 200)}`);
-          }
-          const json = await res.json();
+  const queryParams = Object.fromEntries(params);
+  const json = await apiService.getRelatorio(mapTipoToEndpoint(tipo), queryParams);
 
           // Normaliza o payload retornado pelo backend:
           // - se existir `tabela_simplificada` (array) usa como fonte principal

@@ -129,17 +129,21 @@ class CriancaController extends Controller
             
             // Calcular pontuação e adicionar à fila de espera
             $pontuacao = $this->alocacaoService->calcularPontuacaoCrianca($crianca);
-            
-            $posicaoFila = FilaEspera::where('status', 'aguardando')->count() + 1;
-            
+
+            // Criar registro sem depender de count()+1 para evitar race condition.
+            // Após a inserção, reordenamos a fila dentro da mesma transação.
             FilaEspera::create([
                 'crianca_id' => $crianca->id,
                 'pontuacao_total' => $pontuacao['pontuacao_total'],
                 'criterios_aplicados' => $pontuacao['criterios_aplicados'],
-                'posicao_fila' => $posicaoFila,
+                // usar 0 para permitir que o DB/migration aplique default e evitar inserir NULL
+                'posicao_fila' => 0,
                 'data_inscricao' => now()->toDateString(),
                 'status' => 'aguardando',
             ]);
+
+            // Reordenar de forma determinística (centralizado no model)
+            FilaEspera::reordenarFila();
             
             DB::commit();
             
@@ -233,6 +237,9 @@ class CriancaController extends Controller
                     'pontuacao_total' => $pontuacao['pontuacao_total'],
                     'criterios_aplicados' => $pontuacao['criterios_aplicados'],
                 ]);
+
+                // Reordenar fila após atualização de pontuação
+                FilaEspera::reordenarFila();
             }
             
             DB::commit();
@@ -291,6 +298,9 @@ class CriancaController extends Controller
             
             // Remover da fila de espera se estiver aguardando
             FilaEspera::where('crianca_id', $crianca->id)->delete();
+
+            // Reordenar fila após remoção
+            FilaEspera::reordenarFila();
             
             DB::commit();
             

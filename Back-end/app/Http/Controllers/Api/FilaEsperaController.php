@@ -104,8 +104,8 @@ class FilaEsperaController extends Controller
                 $recalculadas++;
             }
             
-            // Reordenar posições na fila
-            $this->reordenarFilaEspera();
+            // Reordenar posições na fila (método centralizado no model)
+            FilaEspera::reordenarFila();
             
             DB::commit();
             
@@ -127,19 +127,5 @@ class FilaEsperaController extends Controller
         }
     }
 
-    /**
-     * Reordena a fila de espera baseada na pontuação
-     */
-    private function reordenarFilaEspera(): void
-    {
-        $itens = FilaEspera::where('status', 'aguardando')
-            ->orderBy('pontuacao_total', 'desc')
-            ->orderBy('data_inscricao', 'asc')
-            ->get();
-        
-        $posicao = 1;
-        foreach ($itens as $item) {
-            $item->update(['posicao_fila' => $posicao++]);
-        }
-    }
+    // reordenamento agora centralizado em FilaEspera::reordenarFila()
 }

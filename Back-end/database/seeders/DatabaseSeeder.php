@@ -19,12 +19,9 @@ class DatabaseSeeder extends Seeder
             'email' => 'admin@teste.com',
         ]);
 
-        // Executar seeders na ordem correta
+        // Executar seeders de desenvolvimento (criador completo de dados de teste)
         $this->call([
-            CrecheSeeder::class,
-            TurmaSeeder::class,
-            ResponsavelSeeder::class,
-            CriancaSeeder::class,
+            FullDummySeeder::class,
         ]);
     }
 }

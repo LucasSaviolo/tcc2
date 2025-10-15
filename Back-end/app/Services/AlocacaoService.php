@@ -45,11 +45,8 @@ class AlocacaoService
                         'status' => 'ativa'
                     ]);
 
-                    // Atualizar status na fila
-                    $itemFila->update(['status' => 'alocada']);
-
-                    // Reduzir vagas disponíveis
-                    $crecheAlocada->decrement('vagas_disponiveis');
+                    // Atualizar status na fila (usar valor válido do enum)
+                    $itemFila->update(['status' => 'ativa']);
 
                     $resultados['alocacoes_realizadas']++;
                     $resultados['detalhes'][] = [
@@ -112,10 +109,19 @@ class AlocacaoService
             $creche = $preferencia->creche;
             
             // Verifica se a creche está ativa e tem vagas
-            if ($creche->ativa && $creche->vagas_disponiveis > 0) {
+            if ($creche->ativa) {
                 // Verifica se a idade da criança é aceita
                 if (in_array($crianca->idade, $creche->idades_aceitas)) {
-                    return $creche;
+                    // Tentar decrementar de forma atômica para evitar race conditions
+                    $decremented = Creche::where('id', $creche->id)
+                        ->where('vagas_disponiveis', '>', 0)
+                        ->decrement('vagas_disponiveis');
+
+                    if ($decremented) {
+                        // Retornar a instância da creche (não é necessário o valor de vagas aqui)
+                        return $creche;
+                    }
+                    // Se não conseguiu decrementar, tentar próxima preferência
                 }
             }
         }

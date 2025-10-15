@@ -156,38 +156,15 @@ class ApiService {
 
   // Crianças Methods
   async getCriancas(params?: PaginationParams): Promise<PaginatedResponse<Crianca>> {
-    const response: AxiosResponse<ApiResponse<PaginatedResponse<Crianca>>> = await this.api.get('/criancas', { params });
-    if (!response.data.success) {
-      throw new Error(response.data.message || 'Falha ao obter lista de crianças');
-    }
-    
-    // Se o backend retorna os dados diretamente em data (array de crianças)
-    // ao invés de data.data (estrutura paginada)
-    let criancasArray: Crianca[] = [];
-    let paginationInfo = {
-      current_page: 1,
-      per_page: 10,
-      total: 0,
-      last_page: 1,
-      from: 0,
-      to: 0
-    };
-    
-    if (Array.isArray(response.data.data)) {
-      // Caso o backend retorne as crianças diretamente no data
-      criancasArray = response.data.data;
-      paginationInfo = response.data.meta?.pagination || {
-        current_page: 1,
-        per_page: criancasArray.length,
-        total: criancasArray.length,
-        last_page: 1,
-        from: criancasArray.length > 0 ? 1 : 0,
-        to: criancasArray.length
-      };
-    } else if (response.data.data?.data && Array.isArray(response.data.data.data)) {
-      // Caso o backend retorne estrutura paginada
-      criancasArray = response.data.data.data;
-      paginationInfo = response.data.data.meta?.pagination || response.data.meta?.pagination || {
+    try {
+      const response: AxiosResponse<ApiResponse<PaginatedResponse<Crianca>>> = await this.api.get('/criancas', { params });
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Falha ao obter lista de crianças');
+      }
+
+      // Normaliza resposta (mesma lógica anterior)
+      let criancasArray: Crianca[] = [];
+      let paginationInfo = {
         current_page: 1,
         per_page: 10,
         total: 0,
@@ -195,14 +172,69 @@ class ApiService {
         from: 0,
         to: 0
       };
-    }
-    
-    return {
-      data: criancasArray,
-      meta: {
-        pagination: paginationInfo
+
+      if (Array.isArray(response.data.data)) {
+        criancasArray = response.data.data as unknown as Crianca[];
+        paginationInfo = response.data.meta?.pagination || {
+          current_page: 1,
+          per_page: criancasArray.length,
+          total: criancasArray.length,
+          last_page: 1,
+          from: criancasArray.length > 0 ? 1 : 0,
+          to: criancasArray.length
+        };
+      } else if (response.data.data?.data && Array.isArray(response.data.data.data)) {
+        criancasArray = response.data.data.data;
+        paginationInfo = response.data.data.meta?.pagination || response.data.meta?.pagination || paginationInfo;
       }
-    };
+
+      return {
+        data: criancasArray,
+        meta: { pagination: paginationInfo }
+      };
+    } catch (error: any) {
+      // Se o erro for 401 (não autenticado), tentar rota pública /criancas-public
+      if (error?.response?.status === 401) {
+        try {
+          const publicResponse: AxiosResponse<ApiResponse<any>> = await this.api.get('/criancas-public', { params });
+          // Normaliza resposta pública (pode ser array direto ou paginado)
+          let criancasArray: Crianca[] = [];
+          let paginationInfo = {
+            current_page: 1,
+            per_page: 10,
+            total: 0,
+            last_page: 1,
+            from: 0,
+            to: 0
+          };
+
+          if (Array.isArray(publicResponse.data.data)) {
+            criancasArray = publicResponse.data.data;
+            paginationInfo = publicResponse.data.meta?.pagination || {
+              current_page: 1,
+              per_page: criancasArray.length,
+              total: criancasArray.length,
+              last_page: 1,
+              from: criancasArray.length > 0 ? 1 : 0,
+              to: criancasArray.length
+            };
+          } else if (publicResponse.data.data?.data && Array.isArray(publicResponse.data.data.data)) {
+            criancasArray = publicResponse.data.data.data;
+            paginationInfo = publicResponse.data.data.meta?.pagination || publicResponse.data.meta?.pagination || paginationInfo;
+          }
+
+          return {
+            data: criancasArray,
+            meta: { pagination: paginationInfo }
+          };
+        } catch (e) {
+          // Se falhar, propaga o erro original
+          throw e;
+        }
+      }
+
+      throw error;
+    }
   }
 
   async getCrianca(id: number): Promise<Crianca> {
@@ -246,48 +278,14 @@ class ApiService {
           throw new Error(response.data.message || 'Falha ao obter lista de creches');
         }
         
-        let crechesArray: Creche[] = [];
         const data = response.data.data as any;
-        
         if (Array.isArray(data)) {
-          // Caso o backend retorne as creches diretamente no data
-          crechesArray = data;
-        } else if (data?.data && Array.isArray(data.data)) {
-          // Caso o backend retorne estrutura paginada
-          crechesArray = data.data;
-        } else {
-          crechesArray = [];
+          return data as Creche[];
         }
-        
-        // Simular diferentes ocupações para demonstrar os status
-        crechesArray = crechesArray.map((creche, index) => {
-          const scenarios = [
-            // Cenário 1: Disponível (muitas vagas livres)
-            { alunos_matriculados: Math.max(0, creche.capacidade_total - 9) },
-            // Cenário 2: Quase Lotada (poucas vagas)
-            { alunos_matriculados: Math.max(0, creche.capacidade_total - 15) },
-            // Cenário 3: Lotada (quase sem vagas)
-            { alunos_matriculados: Math.max(0, creche.capacidade_total - 1) },
-            // Cenário 4: Disponível (boa quantidade de vagas)
-            { alunos_matriculados: Math.max(0, creche.capacidade_total - 12) },
-            // Cenário 5: Quase Lotada 
-            { alunos_matriculados: Math.max(0, creche.capacidade_total - 5) },
-            // Cenário 6: Lotada
-            { alunos_matriculados: creche.capacidade_total }
-          ];
-          
-          const scenario = scenarios[index % scenarios.length];
-          const alunosMatriculados = scenario.alunos_matriculados;
-          const vagasDisponiveis = Math.max(0, creche.capacidade_total - alunosMatriculados);
-          
-          return {
-            ...creche,
-            alunos_matriculados: alunosMatriculados,
-            vagas_disponiveis: vagasDisponiveis
-          };
-        });
-        
-        return crechesArray;
+        if (data?.data && Array.isArray(data.data)) {
+          return data.data as Creche[];
+        }
+        return [];
       } else {
         // Se não há campo success, assume que os dados estão diretamente na resposta
         return Array.isArray(response.data) ? response.data : [];
@@ -331,6 +329,59 @@ class ApiService {
     }
 
     return response.data.data as PaginatedResponse<Turma>;
+  }
+
+  // Metadados do sistema (idades, turnos, etc.)
+  async getMeta(): Promise<{ idades: number[]; turnos: string[] }> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/meta');
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Falha ao obter metadados');
+    }
+    return response.data.data || { idades: [], turnos: [] };
+  }
+
+  // Relatórios
+  async getRelatorioDashboard(): Promise<any> {
+    const response: AxiosResponse<any> = await this.api.get('/relatorios/dashboard');
+    // Alguns endpoints retornam o payload direto (sem wrapper `success`).
+    if (response.data && typeof response.data === 'object') {
+      if ('success' in response.data) {
+        if (!response.data.success) throw new Error(response.data.message || 'Falha ao obter relatório do dashboard');
+        return response.data.data;
+      }
+      // Retorna payload cru
+      return response.data;
+    }
+    throw new Error('Resposta inválida do servidor ao obter relatório do dashboard');
+  }
+
+  async getRelatorio(endpoint: string, params?: Record<string, any>): Promise<any> {
+    const response = await this.api.get(`/relatorios/${endpoint}`, { params });
+    // Algumas rotas de relatório podem retornar um payload sem o wrapper 'success'
+    if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+      if (!response.data.success) throw new Error(response.data.message || 'Erro ao obter relatório');
+      return response.data.data;
+    }
+    return response.data;
+  }
+
+  async exportRelatorioPdf(tipo: string, params?: Record<string, string>): Promise<Blob> {
+    // Normaliza o nome do endpoint para os casos em que a UI usa ids diferentes
+    const mapTipoToEndpoint = (t: string) => {
+      switch (t) {
+        case 'criancas': return 'geral-criancas';
+        case 'creches': return 'por-creche';
+        case 'vagas': return 'vagas-demandas';
+        case 'estatistico': return 'estatistico';
+        default: return t;
+      }
+    };
+
+    const endpoint = mapTipoToEndpoint(tipo);
+    const query = params ? new URLSearchParams(params).toString() : '';
+    const url = `/relatorios/pdf/${endpoint}${query ? `?${query}` : ''}`;
+    const response = await this.api.get(url, { responseType: 'blob' as const });
+    return response.data as Blob;
   }
 
   async getTurma(id: number): Promise<any> {
