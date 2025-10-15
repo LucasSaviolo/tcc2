@@ -47,36 +47,25 @@ Principais requisitos
 Executando localmente
 ---------------------
 
-1) Back-end
+# Sistema de Gestão e Alocação de Creches
 
-```powershell
-cd Back-end
-composer install
-cp .env.example .env
-# Ajuste as variáveis de ambiente (DB, MAIL, etc.) no .env
-php artisan key:generate
-php artisan migrate --seed
-php artisan serve --host=127.0.0.1 --port=8000
-```
+Aplicação para gerenciamento de creches, responsáveis, turmas, fila de espera e alocação automática de vagas.
 
-2) Front-end
+Back-end: API em Laravel (PHP) — Front-end: SPA em React + TypeScript (Vite)
 
-```powershell
-cd Front-end
-npm install
-npm run dev
-# A aplicação ficará disponível em http://localhost:3000
-```
+## Visão rápida
 
-Seeders e testes locais
------------------------
+- API REST para operações administrativas, relatórios e processo de alocação.
+- Front-end com dashboards, relatórios filtráveis e exportação de dados.
 
-- O seeder `FullDummySeeder` popula dados realistas (creches, turmas, responsáveis, crianças, preferências). Use `php artisan db:seed --class=FullDummySeeder` para popular a base de desenvolvimento.
-- Há comandos auxiliares para testes de fila e alocação. Para recalcular a fila e executar alocações:
+## Banco de dados
 
-```powershell
-php artisan fila:process --recalcular
-php artisan fila:process --alocar
+O projeto é configurado para MySQL por padrão. Ajuste as credenciais no arquivo `.env`.
+
+Padrões usados no projeto (exemplos):
+- DB_DATABASE: testetcc
+- DB_USERNAME: root
+- DB_PASSWORD: (vazia)
 ```
 
 API — endpoints relevantes
