@@ -10,7 +10,9 @@ $dbPath = DB::connection()->getDatabaseName();
 echo "DB em uso: $dbPath" . PHP_EOL;
 echo "Creches: " . App\Models\Creche::count() . PHP_EOL;
 echo "Turmas: " . App\Models\Turma::count() . PHP_EOL;
-echo "Criancas (total): " . App\Models\Crianca::count() . PHP_EOL;
+echo "Criancas (total Eloquent - exclui soft delete): " . App\Models\Crianca::count() . PHP_EOL;
+echo "Criancas (TOTAL cruas na tabela - inclui soft delete): " . DB::table('criancas')->count() . PHP_EOL;
+echo "Criancas (withTrashed Eloquent): " . App\Models\Crianca::withTrashed()->count() . PHP_EOL;
 
 $porStatus = App\Models\Crianca::select('status', DB::raw('count(*) as total'))
 	->groupBy('status')->orderBy('total','desc')->get();

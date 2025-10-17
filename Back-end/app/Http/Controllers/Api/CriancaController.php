@@ -293,8 +293,8 @@ class CriancaController extends Controller
                 ], 422);
             }
             
-            // Ao invés de deletar, alterar o status para 'desistiu'
-            $crianca->update(['status' => 'desistiu']);
+                // Soft delete - a criança será marcada como deletada
+                $crianca->delete();
             
             // Remover da fila de espera se estiver aguardando
             FilaEspera::where('crianca_id', $crianca->id)->delete();
@@ -309,6 +309,54 @@ class CriancaController extends Controller
                 'message' => 'Criança desativada com sucesso'
             ]);
             
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao desativar criança: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Desativar criança, encerrando alocação ativa se solicitado.
+     * POST /api/criancas/{id}/desativar
+     * Body JSON: { encerrar_alocacao: boolean }
+     */
+    public function desativar(Request $request, Crianca $crianca): JsonResponse
+    {
+        DB::beginTransaction();
+        try {
+            $encerrarAlocacao = (bool) $request->boolean('encerrar_alocacao', false);
+
+            $alocacaoAtiva = $crianca->alocacao()->where('status', 'ativa')->first();
+            if ($alocacaoAtiva) {
+                if (!$encerrarAlocacao) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Criança possui alocação ativa. Envie encerrar_alocacao=true para encerrar a alocação e desativar.'
+                    ], 422);
+                }
+                // Encerrar alocação ativa
+                $alocacaoAtiva->update([
+                    'status' => 'concluida',
+                    'data_fim' => now(),
+                ]);
+            }
+
+            // Soft delete da criança
+            $crianca->delete();
+
+            // Remover da fila de espera e reordenar
+            FilaEspera::where('crianca_id', $crianca->id)->delete();
+            FilaEspera::reordenarFila();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Criança desativada com sucesso'.($alocacaoAtiva ? ' (alocação ativa encerrada)' : ''),
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([

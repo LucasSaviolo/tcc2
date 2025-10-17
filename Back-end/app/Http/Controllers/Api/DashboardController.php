@@ -15,20 +15,33 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function stats(): JsonResponse
+    public function stats(Request $request): JsonResponse
     {
-        // Total de crianças cadastradas no ano letivo atual (fonte canônica para "total de crianças")
-        $totalCriancas = Crianca::where('ano_letivo', date('Y'))->count();
+        // Suporte a filtro opcional por ano letivo (mantém compatível com RelatorioController)
+        $anoLetivo = $request->query('ano_letivo');
 
-        // Total na fila (usar mesmo critério dos relatórios: status 'aguardando_vaga' no ano letivo atual)
-        $totalFila = Crianca::where('status', 'aguardando_vaga')
-            ->where('ano_letivo', date('Y'))
-            ->count();
+        // Total de crianças cadastradas (se ano_letivo informado, filtra; senão, considera todos os anos)
+        $criancasBase = Crianca::query();
+        if ($anoLetivo) {
+            $criancasBase->where('ano_letivo', $anoLetivo);
+        }
+        $totalCriancas = $criancasBase->count();
+
+        // Total na fila (status 'aguardando_vaga', aplica mesmo critério de ano)
+        $totalFilaQuery = Crianca::where('status', 'aguardando_vaga');
+        if ($anoLetivo) {
+            $totalFilaQuery->where('ano_letivo', $anoLetivo);
+        }
+        $totalFila = $totalFilaQuery->count();
         // Calcular capacidade total a partir das turmas ativas (fonte canônica)
         $capacidadeTotal = Turma::where('ativa', true)->sum('capacidade') ?? 0;
 
-        // Contar crianças matriculadas (ocupadas)
-        $ocupadas = Crianca::where('status', 'matriculada')->count();
+        // Contar crianças matriculadas (ocupadas) com mesmo critério de ano
+        $ocupadasQuery = Crianca::where('status', 'matriculada');
+        if ($anoLetivo) {
+            $ocupadasQuery->where('ano_letivo', $anoLetivo);
+        }
+        $ocupadas = $ocupadasQuery->count();
 
         // Vagas disponíveis = capacidade total - ocupadas
         $totalVagas = max(0, $capacidadeTotal - $ocupadas);

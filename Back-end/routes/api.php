@@ -47,15 +47,35 @@ Route::get('test-simple', function () {
 // Definindo rotas públicas específicas antes dos resources autenticados
 Route::get('creches-public', [CrecheController::class, 'index']);
 Route::get('criancas-public', [CriancaController::class, 'index']);
-Route::get('criancas-public/{crianca}', [CriancaController::class, 'show']); // Rota show pública
-Route::delete('criancas-public/{crianca}', [CriancaController::class, 'destroy']); // Rota desativar pública
+Route::get('criancas-public/{crianca}', [CriancaController::class, 'show']);
+Route::post('criancas-public', [CriancaController::class, 'store']);
+Route::put('criancas-public/{crianca}', [CriancaController::class, 'update']);
+Route::delete('criancas-public/{crianca}', [CriancaController::class, 'destroy']);
+// Desativar com encerramento opcional de alocação (público para teste)
+Route::post('criancas-public/{crianca}/desativar', [CriancaController::class, 'desativar']);
 Route::get('responsaveis-public', [ResponsavelController::class, 'index']);
 Route::get('criterios', [CriterioController::class, 'index']);
 
-// Metadados do sistema (idades aceitas e turnos disponíveis)
+// Metadados do sistema (idades e turnos derivados do banco)
 Route::get('meta', function () {
-    $idades = range(0, 5);
-    $turnos = \App\Models\Creche::all()->pluck('turnos_disponiveis')->flatten()->unique()->values()->all();
+    $idades = \App\Models\Crianca::query()
+        ->select('idade')
+        ->distinct()
+        ->orderBy('idade')
+        ->pluck('idade')
+        ->filter(function($v){ return $v !== null; })
+        ->values()
+        ->all();
+
+    $turnos = \App\Models\Turma::query()
+        ->where('ativa', true)
+        ->select('turno')
+        ->distinct()
+        ->orderBy('turno')
+        ->pluck('turno')
+        ->filter(function($v){ return $v !== null && $v !== ''; })
+        ->values()
+        ->all();
 
     return response()->json([
         'success' => true,
@@ -116,6 +136,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Crianças - CRUD completo
     Route::apiResource('criancas', CriancaController::class);
+    // Desativar com encerramento opcional de alocação
+    Route::post('criancas/{crianca}/desativar', [CriancaController::class, 'desativar']);
     
     // Creches - CRUD completo
     Route::apiResource('creches', CrecheController::class);

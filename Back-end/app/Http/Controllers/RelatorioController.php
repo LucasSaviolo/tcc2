@@ -17,13 +17,15 @@ class RelatorioController extends Controller
      */
     public function relatorioGeralCriancas(Request $request)
     {
-        $anoLetivo = $request->input('ano_letivo', date('Y'));
+    $anoLetivo = $request->input('ano_letivo');
         $faixaEtaria = $request->input('faixa_etaria');
         $status = $request->input('status');
         $crecheId = $request->input('creche_id');
 
-        $query = Crianca::with(['responsavel', 'turma.creche', 'preferenciasCreche.creche'])
-            ->where('ano_letivo', $anoLetivo);
+        $query = Crianca::with(['responsavel', 'turma.creche', 'preferenciasCreche.creche']);
+        if ($anoLetivo) {
+            $query->where('ano_letivo', $anoLetivo);
+        }
 
         if ($faixaEtaria) {
             $query->where('idade', $faixaEtaria);
@@ -106,7 +108,7 @@ class RelatorioController extends Controller
     public function relatorioPorCreche(Request $request)
     {
         $crecheId = $request->input('creche_id');
-        $anoLetivo = $request->input('ano_letivo', date('Y'));
+    $anoLetivo = $request->input('ano_letivo');
         $turmaId = $request->input('turma_id');
         $status = $request->input('status');
         
@@ -217,7 +219,7 @@ class RelatorioController extends Controller
      */
     public function relatorioResponsaveis(Request $request)
     {
-        $anoLetivo = $request->input('ano_letivo', date('Y'));
+    $anoLetivo = $request->input('ano_letivo');
         $nome = $request->input('nome');
         $cpf = $request->input('cpf');
         $situacao = $request->input('situacao');
@@ -287,7 +289,7 @@ class RelatorioController extends Controller
      */
     public function relatorioVagasDemandas(Request $request)
     {
-        $anoLetivo = $request->input('ano_letivo', date('Y'));
+    $anoLetivo = $request->input('ano_letivo');
         $faixaEtaria = $request->input('faixa_etaria');
         $crecheId = $request->input('creche_id');
 
@@ -390,13 +392,15 @@ class RelatorioController extends Controller
      */
     public function relatorioTransferencias(Request $request)
     {
-        $anoLetivo = $request->input('ano_letivo', date('Y'));
+    $anoLetivo = $request->input('ano_letivo');
         $tipoMovimentacao = $request->input('tipo_movimentacao');
         $crecheOrigemId = $request->input('creche_origem_id');
         $crecheDestinoId = $request->input('creche_destino_id');
 
-        $query = Transferencia::with(['crianca', 'crecheOrigem', 'crecheDestino'])
-            ->where('ano_letivo', $anoLetivo);
+        $query = Transferencia::with(['crianca', 'crecheOrigem', 'crecheDestino']);
+        if ($anoLetivo) {
+            $query->where('ano_letivo', $anoLetivo);
+        }
 
         if ($tipoMovimentacao) {
             $query->where('tipo_movimentacao', $tipoMovimentacao);
@@ -427,7 +431,11 @@ class RelatorioController extends Controller
         $distribuicaoStatus = $transferencias->groupBy('status')->map(function ($group) {
             return $group->count();
         });
-        $desistencias = Crianca::where('status', 'desistiu')->where('ano_letivo', $anoLetivo)->count();
+        $desistenciasQuery = Crianca::withTrashed()->where('status', 'desistiu');
+        if ($anoLetivo) {
+            $desistenciasQuery->where('ano_letivo', $anoLetivo);
+        }
+        $desistencias = $desistenciasQuery->count();
 
         $total = $transferencias->count();
         $meta = [
@@ -465,14 +473,17 @@ class RelatorioController extends Controller
      */
     public function relatorioEstatistico(Request $request)
     {
-        $anoLetivo = $request->input('ano_letivo', date('Y'));
+    $anoLetivo = $request->input('ano_letivo');
         $faixaEtaria = $request->input('faixa_etaria');
         $bairro = $request->input('bairro');
         $dataInicio = $request->input('data_inicio');
         $dataFim = $request->input('data_fim');
 
         // Estatísticas gerais
-        $criancasQuery = Crianca::where('ano_letivo', $anoLetivo);
+        $criancasQuery = Crianca::query();
+        if ($anoLetivo) {
+            $criancasQuery->where('ano_letivo', $anoLetivo);
+        }
         if ($dataInicio) {
             $criancasQuery->whereDate('data_solicitacao', '>=', $dataInicio);
         }
@@ -481,7 +492,10 @@ class RelatorioController extends Controller
         }
         $totalCriancasCadastradas = $criancasQuery->count();
 
-        $matriculasQuery = Crianca::where('status', 'matriculada')->where('ano_letivo', $anoLetivo);
+        $matriculasQuery = Crianca::where('status', 'matriculada');
+        if ($anoLetivo) {
+            $matriculasQuery->where('ano_letivo', $anoLetivo);
+        }
         if ($dataInicio) {
             $matriculasQuery->whereDate('data_solicitacao', '>=', $dataInicio);
         }
@@ -490,7 +504,10 @@ class RelatorioController extends Controller
         }
         $totalMatriculasEfetivas = $matriculasQuery->count();
 
-        $aguardandoQuery = Crianca::where('status', 'aguardando_vaga')->where('ano_letivo', $anoLetivo);
+        $aguardandoQuery = Crianca::where('status', 'aguardando_vaga');
+        if ($anoLetivo) {
+            $aguardandoQuery->where('ano_letivo', $anoLetivo);
+        }
         if ($dataInicio) {
             $aguardandoQuery->whereDate('data_solicitacao', '>=', $dataInicio);
         }
