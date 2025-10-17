@@ -66,7 +66,14 @@
                     <td>{{ $creche['creche'] ?? 'N/A' }}</td>
                     <td>{{ $creche['vagas_ofertadas'] ?? 0 }}</td>
                     <td>{{ $creche['criancas_na_fila'] ?? 0 }}</td>
-                    <td>{{ $creche['ocupacao_percentual'] ?? 0 }}%</td>
+                    <td>
+                        @php
+                            $val = $creche['ocupacao_percentual'] ?? 0;
+                            // Se vier como fração (0..1), converter para porcentagem
+                            $pct = $val <= 1 ? round($val * 100, 2) : round($val, 2);
+                        @endphp
+                        {{ $pct }}%
+                    </td>
                 </tr>
                 @endforeach
             </tbody>

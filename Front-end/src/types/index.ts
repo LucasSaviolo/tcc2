@@ -1,3 +1,4 @@
+
 export interface User {
   id: number;
   name: string;
@@ -103,12 +104,28 @@ export interface Creche {
 export interface Turma {
   id: number;
   nome: string;
-  creche_id?: number;
+  creche_id: number;
   creche?: Creche;
-  capacidade?: number;
+  idade_minima: number;
+  idade_maxima: number;
+  turno: 'manha' | 'tarde' | 'integral';
+  capacidade: number;
   vagas_disponiveis?: number;
+  criancas_matriculadas?: number;
+  ativa: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface TurmaFormData {
+  id?: number;
+  nome: string;
+  creche_id: number;
+  idade_minima: number;
+  idade_maxima: number;
+  turno: 'manha' | 'tarde' | 'integral';
+  capacidade: number;
+  ativa: boolean;
 }
 
 export interface CriterioAplicado {

@@ -5,7 +5,7 @@
 
 @section('content')
     <!-- Informações da Creche -->
-    @if(isset($relatorio['dados_completos']))
+    @if(isset($relatorio['dados_completos']) && !empty($relatorio['dados_completos']))
     <div class="section">
         <div class="section-title">Informações da Creche</div>
         <table class="table">
@@ -15,11 +15,11 @@
             </tr>
             <tr>
                 <td style="font-weight: bold;">Endereço:</td>
-                <td>{{ $relatorio['dados_completos']['endereco'] ?? 'N/A' }}</td>
+                <td>{{ $relatorio['dados_completos']['endereco'] ?? ($relatorio['dados_completos']['logradouro'] ?? '') . (isset($relatorio['dados_completos']['numero']) ? ', ' . $relatorio['dados_completos']['numero'] : '') }}</td>
             </tr>
             <tr>
                 <td style="font-weight: bold;">Telefone:</td>
-                <td>{{ $relatorio['dados_completos']['telefone'] ?? 'N/A' }}</td>
+                <td>{{ $relatorio['dados_completos']['telefone'] ?? $relatorio['dados_completos']['telefone_institucional'] ?? 'N/A' }}</td>
             </tr>
             <tr>
                 <td style="font-weight: bold;">Responsável:</td>
@@ -27,7 +27,7 @@
             </tr>
             <tr>
                 <td style="font-weight: bold;">E-mail:</td>
-                <td>{{ $relatorio['dados_completos']['email_responsavel'] ?? 'N/A' }}</td>
+                <td>{{ $relatorio['dados_completos']['email_responsavel'] ?? $relatorio['dados_completos']['email_institucional'] ?? 'N/A' }}</td>
             </tr>
         </table>
     </div>

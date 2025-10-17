@@ -17,9 +17,6 @@ class RelatorioController extends Controller
      */
     public function relatorioGeralCriancas(Request $request)
     {
-        // Log temporário para debugging: registrar que o método foi chamado e timestamp
-        \Log::info('relatorioGeralCriancas called - file version timestamp: ' . now()->toDateTimeString());
-        
         $anoLetivo = $request->input('ano_letivo', date('Y'));
         $faixaEtaria = $request->input('faixa_etaria');
         $status = $request->input('status');
@@ -42,6 +39,16 @@ class RelatorioController extends Controller
             });
         }
 
+        // Filtros de data (opcionais)
+        $dataInicio = $request->input('data_inicio');
+        $dataFim = $request->input('data_fim');
+        if ($dataInicio) {
+            $query->whereDate('data_solicitacao', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $query->whereDate('data_solicitacao', '<=', $dataFim);
+        }
+
         $criancas = $query->get();
 
         // Cards e estatísticas
@@ -53,6 +60,15 @@ class RelatorioController extends Controller
             return $group->count();
         })->keys()->first();
 
+        $total = $criancas->count();
+        $meta = [
+            'total' => $total,
+            'per_page' => $request->input('per_page', $total),
+            'page' => $request->input('page', 1),
+            'last_page' => 1,
+            'from' => $total > 0 ? 1 : 0,
+            'to' => $total
+        ];
         return response()->json([
             'dashboard' => [
                 'total_criancas' => $totalCriancas,
@@ -65,13 +81,11 @@ class RelatorioController extends Controller
                     $crecheNome = null;
                     $pref = null;
                     if (isset($crianca->preferenciasCreche) && $crianca->preferenciasCreche) {
-                        // evita chamar methods em null
                         $firstPref = $crianca->preferenciasCreche->first();
                         if ($firstPref && isset($firstPref->creche) && $firstPref->creche) {
                             $crecheNome = $firstPref->creche->nome;
                         }
                     }
-
                     $rows[] = [
                         'nome' => $crianca->nome,
                         'idade' => $crianca->idade,
@@ -81,7 +95,8 @@ class RelatorioController extends Controller
                 }
                 return $rows;
             })(),
-            'dados_completos' => $criancas
+            'dados_completos' => $criancas,
+            'meta' => $meta
         ]);
     }
 
@@ -90,24 +105,87 @@ class RelatorioController extends Controller
      */
     public function relatorioPorCreche(Request $request)
     {
-        $crecheId = $request->input('creche_id', 1);
+        $crecheId = $request->input('creche_id');
         $anoLetivo = $request->input('ano_letivo', date('Y'));
         $turmaId = $request->input('turma_id');
         $status = $request->input('status');
+        
+        // Caso uma creche específica seja informada, manter o comportamento atual
+        if ($crecheId) {
+            $dataInicio = $request->input('data_inicio');
+            $dataFim = $request->input('data_fim');
+            $creche = Creche::with(['turmas.criancas' => function ($query) use ($anoLetivo, $status, $dataInicio, $dataFim) {
+                $query->where('ano_letivo', $anoLetivo);
+                if ($status) {
+                    $query->where('status', $status);
+                }
+                if ($dataInicio) {
+                    $query->whereDate('data_solicitacao', '>=', $dataInicio);
+                }
+                if ($dataFim) {
+                    $query->whereDate('data_solicitacao', '<=', $dataFim);
+                }
+            }])->findOrFail($crecheId);
 
-        $creche = Creche::with(['turmas.criancas' => function ($query) use ($anoLetivo, $status) {
+            $turmas = $creche->turmas;
+            if ($turmaId) {
+                $turmas = $turmas->where('id', $turmaId);
+            }
+
+            // Calcular estatísticas
+            $capacidadeTotal = $turmas->sum('capacidade');
+            $ocupacao = $turmas->sum(function ($turma) {
+                return $turma->criancas->where('status', 'matriculada')->count();
+            });
+            $taxaOcupacao = $capacidadeTotal > 0 ? ($ocupacao / $capacidadeTotal) * 100 : 0;
+
+            $total = $turmas->count();
+            $meta = [
+                'total' => $total,
+                'per_page' => $request->input('per_page', $total),
+                'page' => $request->input('page', 1),
+                'last_page' => 1,
+                'from' => $total > 0 ? 1 : 0,
+                'to' => $total
+            ];
+            return response()->json([
+                'dashboard' => [
+                    'capacidade_total' => $capacidadeTotal,
+                    'ocupacao' => $ocupacao,
+                    'taxa_ocupacao' => round($taxaOcupacao, 2)
+                ],
+                'tabela_simplificada' => $turmas->map(function ($turma) {
+                    $ocupadas = $turma->criancas->where('status', 'matriculada')->count();
+                    return [
+                        'turma' => $turma->nome,
+                        'vagas_ofertadas' => $turma->capacidade,
+                        'ocupadas' => $ocupadas,
+                        'disponiveis' => $turma->capacidade - $ocupadas
+                    ];
+                }),
+                'dados_completos' => $creche,
+                'meta' => $meta
+            ]);
+        }
+
+        // Sem creche_id: agregar sobre todas as creches ativas
+        $dataInicio = $request->input('data_inicio');
+        $dataFim = $request->input('data_fim');
+        $creches = Creche::with(['turmas.criancas' => function ($query) use ($anoLetivo, $status, $dataInicio, $dataFim) {
             $query->where('ano_letivo', $anoLetivo);
             if ($status) {
                 $query->where('status', $status);
             }
-        }])->findOrFail($crecheId);
+            if ($dataInicio) {
+                $query->whereDate('data_solicitacao', '>=', $dataInicio);
+            }
+            if ($dataFim) {
+                $query->whereDate('data_solicitacao', '<=', $dataFim);
+            }
+        }])->where('ativa', true)->get();
 
-        $turmas = $creche->turmas;
-        if ($turmaId) {
-            $turmas = $turmas->where('id', $turmaId);
-        }
+        $turmas = $creches->pluck('turmas')->flatten(1);
 
-        // Calcular estatísticas
         $capacidadeTotal = $turmas->sum('capacidade');
         $ocupacao = $turmas->sum(function ($turma) {
             return $turma->criancas->where('status', 'matriculada')->count();
@@ -128,8 +206,9 @@ class RelatorioController extends Controller
                     'ocupadas' => $ocupadas,
                     'disponiveis' => $turma->capacidade - $ocupadas
                 ];
-            }),
-            'dados_completos' => $creche
+            })->values(),
+            // Sem dados_completos específico quando é agregado (evita assumptions no PDF)
+            'dados_completos' => null
         ]);
     }
 
@@ -175,6 +254,15 @@ class RelatorioController extends Controller
             return $responsavel->criancas->count();
         });
 
+        $total = $responsaveis->count();
+        $meta = [
+            'total' => $total,
+            'per_page' => $request->input('per_page', $total),
+            'page' => $request->input('page', 1),
+            'last_page' => 1,
+            'from' => $total > 0 ? 1 : 0,
+            'to' => $total
+        ];
         return response()->json([
             'dashboard' => [
                 'total_responsaveis' => $totalResponsaveis,
@@ -189,7 +277,8 @@ class RelatorioController extends Controller
                     'num_criancas_vinculadas' => $responsavel->criancas->count()
                 ];
             }),
-            'dados_completos' => $responsaveis
+            'dados_completos' => $responsaveis,
+            'meta' => $meta
         ]);
     }
 
@@ -202,8 +291,16 @@ class RelatorioController extends Controller
         $faixaEtaria = $request->input('faixa_etaria');
         $crecheId = $request->input('creche_id');
 
-        $crechesQuery = Creche::with(['turmas.criancas' => function ($query) use ($anoLetivo) {
+        $dataInicio = $request->input('data_inicio');
+        $dataFim = $request->input('data_fim');
+        $crechesQuery = Creche::with(['turmas.criancas' => function ($query) use ($anoLetivo, $dataInicio, $dataFim) {
             $query->where('ano_letivo', $anoLetivo);
+            if ($dataInicio) {
+                $query->whereDate('data_solicitacao', '>=', $dataInicio);
+            }
+            if ($dataFim) {
+                $query->whereDate('data_solicitacao', '<=', $dataFim);
+            }
         }]);
 
         if ($crecheId) {
@@ -222,6 +319,12 @@ class RelatorioController extends Controller
             
         if ($faixaEtaria) {
             $filaEspera->where('idade', $faixaEtaria);
+        }
+        if ($dataInicio) {
+            $filaEspera->whereDate('data_solicitacao', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $filaEspera->whereDate('data_solicitacao', '<=', $dataFim);
         }
         
         $totalFilaEspera = $filaEspera->count();
@@ -246,6 +349,15 @@ class RelatorioController extends Controller
             return $capacidade > 0 ? ($ocupadas / $capacidade) * 100 : 0;
         });
 
+        $total = $creches->count();
+        $meta = [
+            'total' => $total,
+            'per_page' => $request->input('per_page', $total),
+            'page' => $request->input('page', 1),
+            'last_page' => 1,
+            'from' => $total > 0 ? 1 : 0,
+            'to' => $total
+        ];
         return response()->json([
             'dashboard' => [
                 'total_vagas_ofertadas' => $totalVagasOfertadas,
@@ -261,15 +373,15 @@ class RelatorioController extends Controller
                 $criancasNaFila = Crianca::whereHas('preferenciasCreche', function ($q) use ($creche) {
                     $q->where('creche_id', $creche->id);
                 })->where('status', 'aguardando_vaga')->count();
-                
                 return [
                     'creche' => $creche->nome,
                     'vagas_ofertadas' => $vagasOfertadas,
                     'criancas_na_fila' => $criancasNaFila,
-                    'ocupacao_percentual' => $vagasOfertadas > 0 ? round(($ocupadas / $vagasOfertadas) * 100, 2) : 0
+                    'ocupacao_percentual' => $vagasOfertadas > 0 ? round(($ocupadas / $vagasOfertadas), 4) : 0
                 ];
             }),
-            'dados_completos' => $creches
+            'dados_completos' => $creches,
+            'meta' => $meta
         ]);
     }
 
@@ -298,6 +410,16 @@ class RelatorioController extends Controller
             $query->where('creche_destino_id', $crecheDestinoId);
         }
 
+        // Filtros de data (opcionais)
+        $dataInicio = $request->input('data_inicio');
+        $dataFim = $request->input('data_fim');
+        if ($dataInicio) {
+            $query->whereDate('data_solicitacao', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $query->whereDate('data_solicitacao', '<=', $dataFim);
+        }
+
         $transferencias = $query->get();
 
         // Estatísticas
@@ -307,6 +429,15 @@ class RelatorioController extends Controller
         });
         $desistencias = Crianca::where('status', 'desistiu')->where('ano_letivo', $anoLetivo)->count();
 
+        $total = $transferencias->count();
+        $meta = [
+            'total' => $total,
+            'per_page' => $request->input('per_page', $total),
+            'page' => $request->input('page', 1),
+            'last_page' => 1,
+            'from' => $total > 0 ? 1 : 0,
+            'to' => $total
+        ];
         return response()->json([
             'dashboard' => [
                 'total_transferencias_solicitadas' => $totalTransferencias,
@@ -315,13 +446,17 @@ class RelatorioController extends Controller
             ],
             'tabela_simplificada' => $transferencias->map(function ($transferencia) {
                 return [
-                    'nome_crianca' => $transferencia->crianca->nome,
+                    'nome' => optional($transferencia->crianca)->nome ?? 'N/A',
+                    'nome_crianca' => optional($transferencia->crianca)->nome ?? 'N/A',
                     'origem' => optional($transferencia->crecheOrigem)->nome ?? 'N/A',
                     'destino' => optional($transferencia->crecheDestino)->nome ?? 'N/A',
-                    'status' => $transferencia->status
+                    'status' => $transferencia->status,
+                    'data_solicitacao' => optional($transferencia->data_solicitacao) ? $transferencia->data_solicitacao->format('Y-m-d') : null,
+                    'motivo' => $transferencia->motivo
                 ];
             }),
-            'dados_completos' => $transferencias
+            'dados_completos' => $transferencias,
+            'meta' => $meta
         ]);
     }
 
@@ -333,28 +468,61 @@ class RelatorioController extends Controller
         $anoLetivo = $request->input('ano_letivo', date('Y'));
         $faixaEtaria = $request->input('faixa_etaria');
         $bairro = $request->input('bairro');
+        $dataInicio = $request->input('data_inicio');
+        $dataFim = $request->input('data_fim');
 
         // Estatísticas gerais
-        $totalCriancasCadastradas = Crianca::where('ano_letivo', $anoLetivo)->count();
-        $totalMatriculasEfetivas = Crianca::where('status', 'matriculada')
-            ->where('ano_letivo', $anoLetivo)->count();
-        $totalAguardandoVaga = Crianca::where('status', 'aguardando_vaga')
-            ->where('ano_letivo', $anoLetivo)->count();
+        $criancasQuery = Crianca::where('ano_letivo', $anoLetivo);
+        if ($dataInicio) {
+            $criancasQuery->whereDate('data_solicitacao', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $criancasQuery->whereDate('data_solicitacao', '<=', $dataFim);
+        }
+        $totalCriancasCadastradas = $criancasQuery->count();
+
+        $matriculasQuery = Crianca::where('status', 'matriculada')->where('ano_letivo', $anoLetivo);
+        if ($dataInicio) {
+            $matriculasQuery->whereDate('data_solicitacao', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $matriculasQuery->whereDate('data_solicitacao', '<=', $dataFim);
+        }
+        $totalMatriculasEfetivas = $matriculasQuery->count();
+
+        $aguardandoQuery = Crianca::where('status', 'aguardando_vaga')->where('ano_letivo', $anoLetivo);
+        if ($dataInicio) {
+            $aguardandoQuery->whereDate('data_solicitacao', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $aguardandoQuery->whereDate('data_solicitacao', '<=', $dataFim);
+        }
+        $totalAguardandoVaga = $aguardandoQuery->count();
 
         // Ranking das creches mais procuradas
-        $rankingCreches = Creche::withCount(['preferenciasCreche as procura' => function ($query) use ($anoLetivo) {
-            $query->whereHas('crianca', function ($q) use ($anoLetivo) {
+        $rankingCreches = Creche::withCount(['preferenciasCreche as procura' => function ($query) use ($anoLetivo, $dataInicio, $dataFim) {
+            $query->whereHas('crianca', function ($q) use ($anoLetivo, $dataInicio, $dataFim) {
                 $q->where('ano_letivo', $anoLetivo)->where('status', 'aguardando_vaga');
+                if ($dataInicio) {
+                    $q->whereDate('data_solicitacao', '>=', $dataInicio);
+                }
+                if ($dataFim) {
+                    $q->whereDate('data_solicitacao', '<=', $dataFim);
+                }
             });
         }])->orderBy('procura', 'desc')->take(5)->get();
 
         // Demanda por faixa etária
-        $demandaPorIdade = Crianca::select('idade', DB::raw('count(*) as total'))
+        $demandaPorIdadeQuery = Crianca::select('idade', DB::raw('count(*) as total'))
             ->where('ano_letivo', $anoLetivo)
-            ->where('status', 'aguardando_vaga')
-            ->groupBy('idade')
-            ->orderBy('idade')
-            ->get();
+            ->where('status', 'aguardando_vaga');
+        if ($dataInicio) {
+            $demandaPorIdadeQuery->whereDate('data_solicitacao', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $demandaPorIdadeQuery->whereDate('data_solicitacao', '<=', $dataFim);
+        }
+        $demandaPorIdade = $demandaPorIdadeQuery->groupBy('idade')->orderBy('idade')->get();
 
         return response()->json([
             'dashboard' => [
@@ -376,23 +544,34 @@ class RelatorioController extends Controller
     /**
      * Dashboard Principal
      */
-    public function dashboardPrincipal()
+    public function dashboardPrincipal(\Illuminate\Http\Request $request)
     {
-        $anoLetivo = date('Y');
+        $anoLetivo = $request->query('ano_letivo');
 
         // Cards principais
-        $totalCriancas = Crianca::where('ano_letivo', $anoLetivo)->count();
+        $criancasBaseQuery = Crianca::query();
+        if ($anoLetivo) {
+            $criancasBaseQuery->where('ano_letivo', $anoLetivo);
+        }
+        $totalCriancas = $criancasBaseQuery->count();
         $totalCreches = Creche::where('ativa', true)->count();
         $totalResponsaveis = Responsavel::count();
         
         // Gráfico de pizza - vagas ofertadas vs disponíveis
         $totalVagasOfertadas = Turma::where('ativa', true)->sum('capacidade');
-        $totalOcupadas = Crianca::where('status', 'matriculada')->count();
-        $vagasDisponiveis = $totalVagasOfertadas - $totalOcupadas;
+        $ocupadasQuery = Crianca::where('status', 'matriculada');
+        if ($anoLetivo) {
+            $ocupadasQuery->where('ano_letivo', $anoLetivo);
+        }
+        $totalOcupadas = $ocupadasQuery->count();
+        $vagasDisponiveis = max(0, $totalVagasOfertadas - $totalOcupadas);
 
         // Gráfico de crianças por idade
-        $criancasPorIdade = Crianca::select('idade', DB::raw('count(*) as total'))
-            ->where('ano_letivo', $anoLetivo)
+        $criancasPorIdadeQuery = Crianca::select('idade', DB::raw('count(*) as total'));
+        if ($anoLetivo) {
+            $criancasPorIdadeQuery->where('ano_letivo', $anoLetivo);
+        }
+        $criancasPorIdade = $criancasPorIdadeQuery
             ->groupBy('idade')
             ->orderBy('idade')
             ->get()
@@ -405,8 +584,11 @@ class RelatorioController extends Controller
             });
 
         // Gráfico de crianças por status
-        $criancasPorStatus = Crianca::select('status', DB::raw('count(*) as total'))
-            ->where('ano_letivo', $anoLetivo)
+        $criancasPorStatusQuery = Crianca::select('status', DB::raw('count(*) as total'));
+        if ($anoLetivo) {
+            $criancasPorStatusQuery->where('ano_letivo', $anoLetivo);
+        }
+        $criancasPorStatus = $criancasPorStatusQuery
             ->groupBy('status')
             ->get()
             ->map(function ($item) {
@@ -443,6 +625,7 @@ class RelatorioController extends Controller
             'criancasPorStatus' => $criancasPorStatus,
             'crechesPorRegiao' => $crechesPorRegiao,
             'creches' => $creches,
+            'filtros' => [ 'ano_letivo' => $anoLetivo ],
             'vagas_pie_chart' => [
                 'total_vagas_ofertadas' => $totalVagasOfertadas,
                 'vagas_ocupadas' => $totalOcupadas,

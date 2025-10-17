@@ -14,14 +14,16 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Criar usuário administrador
-        User::factory()->create([
-            'name' => 'Administrador',
-            'email' => 'admin@teste.com',
-        ]);
+        if (!User::where('email', 'admin@teste.com')->exists()) {
+            User::factory()->create([
+                'name' => 'Administrador',
+                'email' => 'admin@teste.com',
+            ]);
+        }
 
-        // Executar seeders de desenvolvimento (criador completo de dados de teste)
+        // Executar seeder completo de dados de teste
         $this->call([
-            FullDummySeeder::class,
+            CompleteDataSeeder::class,
         ]);
     }
 }

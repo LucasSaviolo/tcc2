@@ -90,6 +90,8 @@ Route::prefix('relatorios')->group(function () {
         Route::get('vagas-demandas', [PdfController::class, 'exportarVagasDemandas']);
         Route::get('transferencias', [PdfController::class, 'exportarTransferencias']);
         Route::get('estatistico', [PdfController::class, 'exportarEstatistico']);
+        // Dashboard principal (exportação PDF)
+        Route::get('dashboard', [PdfController::class, 'exportarDashboard']);
     });
 });
 

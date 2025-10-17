@@ -114,4 +114,22 @@ class PdfController extends Controller
 
         return $pdf->download('relatorio-estatistico-' . date('Y-m-d') . '.pdf');
     }
+
+    /**
+     * Exportar Dashboard Principal para PDF
+     */
+    public function exportarDashboard(Request $request)
+    {
+        $relatorioController = new RelatorioController();
+        $dados = $relatorioController->dashboardPrincipal($request);
+        $relatorio = $dados->getData(true);
+
+        $pdf = Pdf::loadView('pdfs.relatorio-dashboard', [
+            'relatorio' => $relatorio,
+            'filtros' => $request->all(),
+            'data_geracao' => now()->format('d/m/Y H:i:s')
+        ]);
+
+        return $pdf->download('relatorio-dashboard-' . date('Y-m-d') . '.pdf');
+    }
 }

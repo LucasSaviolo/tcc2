@@ -384,24 +384,24 @@ class ApiService {
     return response.data as Blob;
   }
 
-  async getTurma(id: number): Promise<any> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.api.get(`/turmas/${id}`);
+  async getTurma(id: number): Promise<Turma> {
+    const response: AxiosResponse<ApiResponse<Turma>> = await this.api.get(`/turmas/${id}`);
     if (!response.data.success) {
       throw new Error(response.data.message || 'Falha ao obter turma');
     }
     return response.data.data;
   }
 
-  async createTurma(data: any): Promise<any> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.api.post('/turmas', data);
+  async createTurma(data: Partial<Turma>): Promise<Turma> {
+    const response: AxiosResponse<ApiResponse<Turma>> = await this.api.post('/turmas', data);
     if (!response.data.success) {
       throw new Error(response.data.message || 'Falha ao criar turma');
     }
     return response.data.data;
   }
 
-  async updateTurma(id: number, data: any): Promise<any> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.api.put(`/turmas/${id}`, data);
+  async updateTurma(id: number, data: Partial<Turma>): Promise<Turma> {
+    const response: AxiosResponse<ApiResponse<Turma>> = await this.api.put(`/turmas/${id}`, data);
     if (!response.data.success) {
       throw new Error(response.data.message || 'Falha ao atualizar turma');
     }
