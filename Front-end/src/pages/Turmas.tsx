@@ -7,7 +7,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import TurmaForm from '../components/business/TurmaForm';
 import toast from 'react-hot-toast';
-import type { Turma, TurmaFormData, Creche } from '../types';
+import type { Turma, TurmaFormData, Creche, PaginatedResponse } from '../types';
 
 const Turmas: React.FC = () => {
   const [selectedTurma, setSelectedTurma] = useState<Turma | null>(null);
@@ -21,10 +21,14 @@ const Turmas: React.FC = () => {
 
   const queryClient = useQueryClient();
 
-  // Buscar turmas
-  const { data: turmasResponse, isLoading, isError, error } = useQuery({
-    queryKey: ['turmas'],
-    queryFn: () => apiService.getTurmas(),
+  // Paginação
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [perPage] = useState<number>(50);
+
+  // Buscar turmas (paginadas)
+  const { data: turmasResponse, isLoading, isError, error } = useQuery<PaginatedResponse<Turma> | Turma[]>({
+    queryKey: ['turmas', { page: currentPage, per_page: perPage }],
+    queryFn: () => apiService.getTurmas({ page: currentPage, per_page: perPage }),
     retry: 1,
   });
 
@@ -34,9 +38,14 @@ const Turmas: React.FC = () => {
     queryFn: () => apiService.getCreches(),
   });
 
-  const turmas: Turma[] = Array.isArray(turmasResponse) 
-    ? turmasResponse 
-    : (turmasResponse?.data || []);
+  const turmas: Turma[] = Array.isArray(turmasResponse)
+    ? turmasResponse
+    : ((turmasResponse as PaginatedResponse<Turma>)?.data || []);
+
+  // Total de turmas considerando a paginação do backend
+  const totalTurmas: number = Array.isArray(turmasResponse)
+    ? turmasResponse.length
+    : ((turmasResponse as PaginatedResponse<Turma>)?.meta?.pagination?.total ?? turmas.length);
 
   const creches: Creche[] = Array.isArray(crechesResponse) 
     ? crechesResponse 
@@ -120,6 +129,10 @@ const Turmas: React.FC = () => {
       deleteMutation.mutate(turma.id);
     }
   };
+
+  const pagination = !Array.isArray(turmasResponse) ? (turmasResponse as PaginatedResponse<Turma>)?.meta?.pagination : undefined;
+  const canPrev = (pagination?.current_page || 1) > 1;
+  const canNext = (pagination?.current_page || 1) < (pagination?.last_page || 1);
 
   const handleViewDetails = (turma: Turma) => {
     setSelectedTurma(turma);
@@ -279,7 +292,10 @@ const Turmas: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total de Turmas</p>
-              <p className="text-2xl font-bold text-gray-900">{filteredTurmas.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{totalTurmas}</p>
+              {filteredTurmas.length !== totalTurmas && (
+                <p className="text-xs text-gray-500 mt-1">Exibindo: {filteredTurmas.length}</p>
+              )}
             </div>
             <School className="w-8 h-8 text-blue-500" />
           </div>
@@ -436,6 +452,34 @@ const Turmas: React.FC = () => {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Paginação */}
+      {pagination && (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-gray-600">
+            Mostrando {pagination.from || 0}–{pagination.to || 0} de {pagination.total || 0}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={!canPrev}
+              onClick={() => canPrev && setCurrentPage((p) => Math.max(1, p - 1))}
+              className={`px-3 py-1 rounded border text-sm ${canPrev ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-400 cursor-not-allowed'}`}
+            >
+              Anterior
+            </button>
+            <span className="text-sm text-gray-600">
+              Página {pagination.current_page} de {pagination.last_page}
+            </span>
+            <button
+              disabled={!canNext}
+              onClick={() => canNext && setCurrentPage((p) => p + 1)}
+              className={`px-3 py-1 rounded border text-sm ${canNext ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-400 cursor-not-allowed'}`}
+            >
+              Próxima
+            </button>
+          </div>
         </div>
       )}
 

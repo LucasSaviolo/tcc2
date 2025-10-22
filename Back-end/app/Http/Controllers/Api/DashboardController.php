@@ -33,18 +33,24 @@ class DashboardController extends Controller
             $totalFilaQuery->where('ano_letivo', $anoLetivo);
         }
         $totalFila = $totalFilaQuery->count();
-        // Calcular capacidade total a partir das turmas ativas (fonte canônica)
-        $capacidadeTotal = Turma::where('ativa', true)->sum('capacidade') ?? 0;
+        // Calcular capacidade e ocupação apenas das turmas ativas
+        $turmasAtivas = Turma::where('ativa', true)
+            ->withCount(['criancas as matriculadas_count' => function ($q) use ($anoLetivo) {
+                $q->where('status', 'matriculada');
+                if ($anoLetivo) {
+                    $q->where('ano_letivo', $anoLetivo);
+                }
+            }])
+            ->get();
 
-        // Contar crianças matriculadas (ocupadas) com mesmo critério de ano
-        $ocupadasQuery = Crianca::where('status', 'matriculada');
-        if ($anoLetivo) {
-            $ocupadasQuery->where('ano_letivo', $anoLetivo);
-        }
-        $ocupadas = $ocupadasQuery->count();
+        $capacidadeTotal = $turmasAtivas->sum('capacidade') ?? 0;
+        $ocupadas = $turmasAtivas->sum('matriculadas_count') ?? 0;
 
-        // Vagas disponíveis = capacidade total - ocupadas
-        $totalVagas = max(0, $capacidadeTotal - $ocupadas);
+        // Vagas disponíveis somando por turma (evita inconsistências ao desativar/excluir turmas)
+        $totalVagas = $turmasAtivas->reduce(function ($carry, $turma) {
+            $livres = max(0, ($turma->capacidade ?? 0) - ($turma->matriculadas_count ?? 0));
+            return $carry + $livres;
+        }, 0);
 
         $totalCreches = Creche::where('ativa', true)->count();
         
