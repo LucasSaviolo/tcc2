@@ -16,7 +16,6 @@ import {
   ArcElement
 } from 'chart.js';
 
-// Registrando os componentes do Chart.js
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -26,6 +25,32 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
+// Normaliza e agrega dados do gráfico (rótulos duplicados, ordenação numérica quando possível)
+function normalizeChartData(raw: any): { labels: string[]; data: number[] } {
+  if (!raw || !Array.isArray(raw.labels) || !Array.isArray(raw.datasets?.[0]?.data)) {
+    return { labels: [], data: [] };
+  }
+
+  const labels: any[] = raw.labels;
+  const values: number[] = raw.datasets[0].data.map((v: any) => Number(v) || 0);
+
+  const map = new Map<string, number>();
+  labels.forEach((label, idx) => {
+    const key = String(label);
+    const val = values[idx] ?? 0;
+    map.set(key, (map.get(key) || 0) + val);
+  });
+
+  const entries = Array.from(map.entries());
+  const isNumeric = entries.every(([k]) => /^\d+$/.test(k));
+  const sorted = isNumeric ? entries.sort((a, b) => Number(a[0]) - Number(b[0])) : entries;
+
+  return {
+    labels: sorted.map(([k]) => k),
+    data: sorted.map(([, v]) => v),
+  };
+}
 
 interface StatsCardProps {
   title: string;
@@ -41,7 +66,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ title, value, change, icon, color
     green: 'text-green-600 bg-green-100',
     yellow: 'text-yellow-600 bg-yellow-100',
     red: 'text-red-600 bg-red-100',
-  };
+  } as const;
 
   return (
     <Card hover className="p-6">
@@ -84,6 +109,25 @@ const Dashboard: React.FC = () => {
     queryFn: () => apiService.getRecentActions(),
   });
 
+  // Preparação e métricas do gráfico de barras
+  const normalized = React.useMemo(() => normalizeChartData(chartData), [chartData]);
+  const isNumericLabels = React.useMemo(() => normalized.labels.every(l => /^\d+$/.test(l)), [normalized]);
+  const totalBar = React.useMemo(() => normalized.data.reduce((a, b) => a + b, 0), [normalized]);
+  const avgBar = React.useMemo(() => normalized.data.length ? totalBar / normalized.data.length : 0, [normalized, totalBar]);
+  const chartHeading = isNumericLabels ? 'Crianças Cadastradas por Idade' : 'Resumo das alocações';
+  const xAxisTitle = isNumericLabels ? 'Idade (anos)' : 'Mês';
+  const yAxisTitle = isNumericLabels ? 'Quantidade de Crianças' : 'Quantidade de Alocações';
+  const datasetLabel = isNumericLabels ? 'Qtd. de Crianças' : 'Qtd. de Alocações';
+
+  // Métricas do donut (status das vagas)
+  const capacidadeTotal = stats?.capacidade_total ?? 0;
+  const ocupadas = (stats as any)?.ocupadas ?? Math.max(0, capacidadeTotal - (stats?.total_vagas ?? 0));
+  const taxaOcupacao = capacidadeTotal > 0 ? (ocupadas * 100) / capacidadeTotal : 0;
+  const ySuggestedMax = React.useMemo(() => {
+    const max = normalized.data.length ? Math.max(...normalized.data) : 0;
+    return max + Math.ceil(max * 0.15);
+  }, [normalized]);
+
   if (statsLoading) {
     return (
       <div className="space-y-6">
@@ -119,16 +163,11 @@ const Dashboard: React.FC = () => {
           </p>
         </div>
         <div className="mt-4 flex md:ml-4 md:mt-0">
-          <Button 
-            variant="primary"
-            onClick={() => window.location.href = '/alocacoes'}
-          >
+          <Button variant="primary" onClick={() => window.location.href = '/alocacoes'}>
             Nova Alocação
           </Button>
         </div>
       </div>
-
-      {/* Stats */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total de Crianças"
@@ -167,11 +206,17 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Distribution Chart */}
         <Card className="p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-6">Crianças Cadastradas por Idade</h3>
-          {chartData && (
-            <div className="h-80">{/* Aumentei de h-64 para h-80 */}
-              {/* Se todos os pontos forem zero, mostramos uma mensagem amigável */}
-              {Array.isArray(chartData.datasets?.[0]?.data) && chartData.datasets[0].data.every((v: number) => v === 0) ? (
+          <div className="mb-2">
+            <h3 className="text-lg font-medium text-gray-900">{chartHeading}</h3>
+            <div className="mt-1 text-sm text-gray-600 flex items-center gap-3">
+              <span>Total: <strong>{totalBar}</strong></span>
+              <span className="hidden sm:inline">•</span>
+              <span>Média: <strong>{avgBar.toFixed(1)}</strong></span>
+            </div>
+          </div>
+          {(chartData && normalized.labels.length > 0) && (
+            <div className="h-80">
+              {normalized.data.every((v: number) => v === 0) ? (
                 <div className="h-80 flex items-center justify-center text-gray-500">
                   <div className="text-center">
                     <div className="text-lg font-semibold">Sem dados suficientes para exibir o gráfico</div>
@@ -180,163 +225,133 @@ const Dashboard: React.FC = () => {
                 </div>
               ) : (
                 <Bar 
-                data={{
-                  // Usar labels e datasets fornecidos pelo backend (diretamente do banco)
-                  labels: chartData.labels || [],
-                  datasets: [
-                    {
-                      label: chartData.datasets?.[0]?.label || 'Dados',
-                      data: chartData.datasets?.[0]?.data || [],
-                      backgroundColor: chartData.datasets?.[0]?.backgroundColor || [
-                        'rgba(99, 102, 241, 0.6)',
-                        'rgba(16, 185, 129, 0.6)',
-                        'rgba(245, 158, 11, 0.6)',
-                        'rgba(239, 68, 68, 0.6)',
-                        'rgba(139, 92, 246, 0.6)',
-                        'rgba(236, 72, 153, 0.6)'
-                      ],
-                      borderColor: chartData.datasets?.[0]?.borderColor || [
-                        'rgb(99, 102, 241)',
-                        'rgb(16, 185, 129)',
-                        'rgb(245, 158, 11)',
-                        'rgb(239, 68, 68)',
-                        'rgb(139, 92, 246)',
-                        'rgb(236, 72, 153)'
-                      ],
-                      borderWidth: 2,
-                      borderRadius: 4,
-                      borderSkipped: false,
+                  data={{
+                    labels: normalized.labels,
+                    datasets: [
+                      {
+                        label: datasetLabel,
+                        data: normalized.data,
+                        backgroundColor: (ctx: any) => {
+                          const { ctx: c, chartArea } = ctx.chart;
+                          if (!chartArea) return 'rgba(99, 102, 241, 0.85)';
+                          const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                          gradient.addColorStop(0, 'rgba(129, 140, 248, 0.45)'); // indigo-400
+                          gradient.addColorStop(1, 'rgba(79, 70, 229, 0.95)'); // indigo-600
+                          return gradient;
+                        },
+                        borderColor: 'rgba(67, 56, 202, 1)', // indigo-700
+                        borderWidth: 2,
+                        borderRadius: 10,
+                        borderSkipped: false,
+                        maxBarThickness: 46,
+                        categoryPercentage: 0.62,
+                        barPercentage: 0.9,
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                      padding: { top: 36, bottom: 10, left: 10, right: 10 }
                     },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  layout: {
-                    padding: {
-                      top: 30,
-                      bottom: 10,
-                      left: 10,
-                      right: 10
-                    }
-                  },
-                  plugins: {
-                    legend: {
-                      position: 'top',
-                      labels: {
-                        font: {
-                          size: 12,
-                          weight: 'bold',
-                        },
-                        color: '#374151',
-                      }
-                    },
-                    title: {
-                      display: false,
-                    },
-                    tooltip: {
-                      callbacks: {
-                        title: function(context: any) {
-                          const idade = context[0].label;
-                          return `Idade: ${idade} ${idade === '1' ? 'ano' : 'anos'}`;
-                        },
-                        label: function(context: any) {
-                          const count = context.parsed.y;
-                          return `${count} criança${count !== 1 ? 's' : ''} cadastrada${count !== 1 ? 's' : ''}`;
-                        }
-                      },
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                      titleColor: '#fff',
-                      bodyColor: '#fff',
-                      borderColor: 'rgb(99, 102, 241)',
-                      borderWidth: 1,
-                    }
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      suggestedMax: function(context: any) {
-                        const max = Math.max(...context.chart.data.datasets[0].data);
-                        return max + Math.ceil(max * 0.15); // Adiciona 15% de espaço extra no topo
-                      },
-                      ticks: {
-                        stepSize: 1,
-                        font: {
-                          size: 11,
-                        },
-                        color: '#6B7280',
-                      },
-                      grid: {
-                        color: 'rgba(229, 231, 235, 0.5)',
-                      },
-                      title: {
-                        display: true,
-                        text: 'Quantidade de Crianças',
-                        font: {
-                          size: 12,
-                          weight: 'bold',
-                        },
-                        color: '#374151',
-                      }
-                    },
-                    x: {
-                      ticks: {
-                        font: {
-                          size: 11,
-                          weight: 'bold',
-                        },
-                        color: '#374151',
-                      },
-                      grid: {
-                        display: false,
-                      },
-                      title: {
-                        display: true,
-                        text: 'Idade (anos)',
-                        font: {
-                          size: 12,
-                          weight: 'bold',
-                        },
-                        color: '#374151',
-                      }
-                    }
-                  },
-                  elements: {
-                    bar: {
-                      borderWidth: 2,
-                    }
-                  },
-                  interaction: {
-                    intersect: false,
-                    mode: 'index',
-                  },
-                }}
-                plugins={[
-                  {
-                    id: 'dataLabels',
-                    afterDatasetsDraw: function(chart: any) {
-                      const ctx = chart.ctx;
-                      chart.data.datasets.forEach((dataset: any, i: number) => {
-                        const meta = chart.getDatasetMeta(i);
-                        meta.data.forEach((bar: any, index: number) => {
-                          const data = dataset.data[index];
-                          if (data > 0) {
-                            ctx.fillStyle = '#374151';
-                            ctx.font = 'bold 11px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'bottom';
-                            
-                            const x = bar.x;
-                            const y = bar.y - 8; // Aumentei o espaço de -5 para -8
-                            
-                            ctx.fillText(data.toString(), x, y);
+                    plugins: {
+                      legend: { display: false },
+                      title: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          title: (context: any) => {
+                            const raw = context?.[0]?.label ?? '';
+                            const labelStr = String(raw);
+                            if (isNumericLabels) {
+                              const n = Number(labelStr);
+                              return `Idade: ${n} ${n === 1 ? 'ano' : 'anos'}`;
+                            }
+                            return `Mês: ${labelStr}`;
+                          },
+                          label: (context: any) => {
+                            const count = context.parsed.y;
+                            if (isNumericLabels) {
+                              return `${count} criança${count !== 1 ? 's' : ''} cadastrada${count !== 1 ? 's' : ''}`;
+                            }
+                            return `${count} alocação${count !== 1 ? 'es' : ''}`;
                           }
+                        },
+                        backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: 'rgba(67, 56, 202, 0.8)',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: false,
+                      }
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        suggestedMax: ySuggestedMax,
+                        ticks: { stepSize: 1, font: { size: 11 }, color: '#6B7280' },
+                        grid: { color: 'rgba(229, 231, 235, 0.6)' },
+                        border: { display: false },
+                        title: { display: true, text: yAxisTitle, font: { size: 12, weight: 'bold' }, color: '#374151' }
+                      },
+                      x: {
+                        ticks: { font: { size: 11, weight: 'bold' }, color: '#374151', maxRotation: 0, autoSkip: true, autoSkipPadding: 8 },
+                        grid: { display: false },
+                        border: { display: false },
+                        title: { display: true, text: xAxisTitle, font: { size: 12, weight: 'bold' }, color: '#374151' }
+                      }
+                    },
+                    elements: { bar: { borderWidth: 2 } },
+                    interaction: { intersect: false, mode: 'index' },
+                  }}
+                  plugins={[
+                    {
+                      id: 'dataLabels',
+                      afterDatasetsDraw: function(chart: any) {
+                        const ctx = chart.ctx;
+                        chart.data.datasets.forEach((dataset: any, i: number) => {
+                          const meta = chart.getDatasetMeta(i);
+                          meta.data.forEach((bar: any, index: number) => {
+                            const data = dataset.data[index];
+                            if (data > 0) {
+                              ctx.fillStyle = '#374151';
+                              ctx.font = 'bold 11px Arial';
+                              ctx.textAlign = 'center';
+                              ctx.textBaseline = 'bottom';
+                              const x = bar.x;
+                              const y = bar.y - 8;
+                              ctx.fillText(data.toString(), x, y);
+                            }
+                          });
                         });
-                      });
+                      }
+                    },
+                    {
+                      id: 'avgLine',
+                      afterDatasetsDraw: (chart: any) => {
+                        const { ctx, chartArea, scales } = chart;
+                        const yScale = scales?.y;
+                        if (!chartArea || !yScale || !isFinite(avgBar)) return;
+                        const y = yScale.getPixelForValue(avgBar);
+                        ctx.save();
+                        ctx.strokeStyle = 'rgba(107, 114, 128, 0.6)';
+                        ctx.setLineDash([6, 4]);
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(chartArea.left, y);
+                        ctx.lineTo(chartArea.right, y);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        ctx.fillStyle = '#6B7280';
+                        ctx.font = 'bold 10px Arial';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(`Média: ${avgBar.toFixed(1)}`, chartArea.right, y - 6);
+                        ctx.restore();
+                      }
                     }
-                  }
-                ]}
-              />
+                  ]}
+                />
               )}
             </div>
           )}
@@ -353,41 +368,44 @@ const Dashboard: React.FC = () => {
         {/* Status Chart */}
         <Card className="p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Status das Vagas</h3>
-          {chartData && (
+          {capacidadeTotal === 0 ? (
+            <div className="h-64 flex items-center justify-center text-gray-600">
+              <div className="text-center">
+                <div className="text-base font-medium">Sem turmas ativas ou capacidade cadastrada</div>
+                <div className="text-sm mt-1">Cadastre turmas e defina capacidade para visualizar o status de vagas.</div>
+              </div>
+            </div>
+          ) : chartData && (
             <div className="h-64 flex items-center justify-center">
               <div style={{ width: '250px', height: '250px' }}>
                 <Doughnut 
                   data={{
                     labels: ['Ocupadas', 'Disponíveis'],
                     datasets: [
-                        {
-                          data: [
-                            // Ocupadas = capacidade_total - total_vagas (ambos fornecidos pelo backend)
-                            (stats?.capacidade_total ?? 0) - (stats?.total_vagas ?? 0),
-                            stats?.total_vagas ?? 0
-                          ],
+                      {
+                        data: [ocupadas, stats?.total_vagas ?? 0],
                         backgroundColor: [
-                          'rgba(99, 102, 241, 0.5)',
-                          'rgba(16, 185, 129, 0.5)',
+                          'rgba(79, 70, 229, 0.9)',
+                          'rgba(16, 185, 129, 0.85)',
                         ],
-                        borderColor: [
-                          'rgb(99, 102, 241)',
-                          'rgb(16, 185, 129)',
-                        ],
-                        borderWidth: 1,
+                        borderColor: ['#fff', '#fff'],
+                        borderWidth: 2,
                       },
                     ],
                   }}
                   options={{
                     responsive: true,
                     maintainAspectRatio: false,
+                    cutout: '70%',
                     plugins: {
                       legend: {
                         position: 'bottom',
                         labels: {
-                          font: {
-                            size: 12,
-                          },
+                          usePointStyle: true,
+                          boxWidth: 8,
+                          boxHeight: 8,
+                          padding: 16,
+                          font: { size: 12 },
                           color: '#374151',
                         }
                       },
@@ -399,52 +417,33 @@ const Dashboard: React.FC = () => {
                             return `${context.label}: ${context.parsed} vagas (${percentage}%)`;
                           }
                         },
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        backgroundColor: 'rgba(17, 24, 39, 0.9)',
                         titleColor: '#fff',
                         bodyColor: '#fff',
-                        borderColor: 'rgb(99, 102, 241)',
+                        borderColor: 'rgba(67, 56, 202, 0.8)',
                         borderWidth: 1,
                       }
                     },
                   }}
                   plugins={[
                     {
-                      id: 'percentageLabels',
+                      id: 'centerText',
                       afterDraw: function(chart: any) {
+                        const meta = chart.getDatasetMeta(0);
+                        if (!meta?.data?.length) return;
                         const ctx = chart.ctx;
-                        const data = chart.data.datasets[0].data;
-                        const total = data.reduce((a: number, b: number) => a + b, 0);
-                        
-                        if (total > 0) {
-                          const meta = chart.getDatasetMeta(0);
-                          meta.data.forEach((arc: any, index: number) => {
-                            const value = data[index];
-                            const percentage = ((value * 100) / total).toFixed(1);
-                            
-                            // Calcular posição no meio do arco
-                            const midAngle = (arc.startAngle + arc.endAngle) / 2;
-                            const radius = (arc.innerRadius + arc.outerRadius) / 2;
-                            const x = arc.x + Math.cos(midAngle) * radius;
-                            const y = arc.y + Math.sin(midAngle) * radius;
-                            
-                            // Configurar texto
-                            ctx.save();
-                            ctx.fillStyle = '#fff';
-                            ctx.font = 'bold 16px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            
-                            // Desenhar sombra do texto para melhor legibilidade
-                            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                            ctx.shadowBlur = 4;
-                            ctx.shadowOffsetX = 1;
-                            ctx.shadowOffsetY = 1;
-                            
-                            // Desenhar a porcentagem
-                            ctx.fillText(`${percentage}%`, x, y);
-                            ctx.restore();
-                          });
-                        }
+                        const centerX = meta.data[0].x;
+                        const centerY = meta.data[0].y;
+                        ctx.save();
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = '#111827';
+                        ctx.font = 'bold 22px Arial';
+                        ctx.fillText(`${Math.round(taxaOcupacao)}%`, centerX, centerY - 6);
+                        ctx.font = 'normal 11px Arial';
+                        ctx.fillStyle = '#6B7280';
+                        ctx.fillText('ocupação', centerX, centerY + 12);
+                        ctx.restore();
                       }
                     }
                   ]}
@@ -469,21 +468,23 @@ const Dashboard: React.FC = () => {
         <Card className="p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Ações Recentes</h3>
           <div className="space-y-4">
-            {recentActions?.slice(0, 5).map((action) => (
-              <div key={action.id} className="flex items-center space-x-3">
-                <div className="flex-shrink-0">
-                  <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-primary-600" />
+            {recentActions && recentActions.length > 0 ? (
+              recentActions.slice(0, 5).map((action) => (
+                <div key={action.id} className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
+                      <Users className="h-4 w-4 text-primary-600" />
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-900">{action.description}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(action.created_at).toLocaleString('pt-BR')}
+                    </p>
                   </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-900">{action.description}</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(action.created_at).toLocaleString('pt-BR')}
-                  </p>
-                </div>
-              </div>
-            )) || (
+              ))
+            ) : (
               <p className="text-gray-500 text-sm">Nenhuma ação recente</p>
             )}
           </div>

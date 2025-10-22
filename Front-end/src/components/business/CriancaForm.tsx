@@ -24,7 +24,7 @@ const schema = yup.object({
   cpf: yup.string().nullable().optional(),
   responsavel_id: yup.number().required('Responsável é obrigatório'),
   criterios_prioridade_ids: yup.array().of(yup.number()).nullable().optional(),
-  primeira_opcao_creche_id: yup.number().nullable().required('Primeira opção de creche é obrigatória'),
+  primeira_opcao_creche_id: yup.number().nullable().required('Selecione ao menos uma creche como primeira opção'),
   segunda_opcao_creche_id: yup.number().nullable().optional(),
   terceira_opcao_creche_id: yup.number().nullable().optional(),
 });
@@ -109,46 +109,55 @@ const CriancaForm: React.FC<CriancaFormProps> = ({ initialData, onSuccess, onCan
 
   const onSubmit = async (data: CriancaFormData) => {
     try {
-      const formData = new FormData();
+      // Validar que ao menos uma creche foi selecionada
+      if (!data.primeira_opcao_creche_id && !data.segunda_opcao_creche_id && !data.terceira_opcao_creche_id) {
+        alert('Selecione ao menos uma creche como preferência');
+        return;
+      }
+
+      // Montar array de preferências no formato esperado pelo back-end
+      const preferencias_creche = [];
       
-      // Dados básicos
-      formData.append('nome', data.nome);
-      formData.append('data_nascimento', data.data_nascimento);
-      if (data.cpf) formData.append('cpf', data.cpf);
-      formData.append('responsavel_id', data.responsavel_id.toString());
-      
-      // Critérios de prioridade
-      if (data.criterios_prioridade_ids && data.criterios_prioridade_ids.length > 0) {
-        data.criterios_prioridade_ids.forEach((id, index) => {
-          formData.append(`criterios_prioridade_ids[${index}]`, id.toString());
+      if (data.primeira_opcao_creche_id) {
+        preferencias_creche.push({
+          creche_id: data.primeira_opcao_creche_id,
+          ordem_preferencia: 1
         });
       }
       
-      // Preferências de creches
-      if (data.primeira_opcao_creche_id) {
-        formData.append('primeira_opcao_creche_id', data.primeira_opcao_creche_id.toString());
-      }
       if (data.segunda_opcao_creche_id) {
-        formData.append('segunda_opcao_creche_id', data.segunda_opcao_creche_id.toString());
+        preferencias_creche.push({
+          creche_id: data.segunda_opcao_creche_id,
+          ordem_preferencia: 2
+        });
       }
+      
       if (data.terceira_opcao_creche_id) {
-        formData.append('terceira_opcao_creche_id', data.terceira_opcao_creche_id.toString());
+        preferencias_creche.push({
+          creche_id: data.terceira_opcao_creche_id,
+          ordem_preferencia: 3
+        });
       }
-      
-      // Documentos de matrícula
-      documentosMatricula.forEach((file, index) => {
-        formData.append(`documentos_matricula[${index}]`, file);
-      });
-      
-      // Documentos dos critérios
-      Object.entries(documentosCriterios).forEach(([criterioId, file]) => {
-        formData.append(`documentos_criterios[${criterioId}]`, file);
-      });
+
+      const payload: any = {
+        nome: data.nome,
+        data_nascimento: data.data_nascimento,
+        responsavel_id: data.responsavel_id,
+        preferencias_creche: preferencias_creche,
+      };
+
+      if (data.cpf) {
+        payload.cpf = data.cpf;
+      }
+
+      if (data.criterios_prioridade_ids && data.criterios_prioridade_ids.length > 0) {
+        payload.criterios_prioridade_ids = data.criterios_prioridade_ids;
+      }
       
       if (initialData?.id) {
-        await updateCrianca.mutateAsync({ id: initialData.id, data: formData });
+        await updateCrianca.mutateAsync({ id: initialData.id, data: payload });
       } else {
-        await createCrianca.mutateAsync(formData);
+        await createCrianca.mutateAsync(payload);
       }
       
       reset();
@@ -158,6 +167,7 @@ const CriancaForm: React.FC<CriancaFormProps> = ({ initialData, onSuccess, onCan
       if (onSuccess) onSuccess();
     } catch (error: any) {
       console.error('Erro ao salvar criança:', error);
+      alert(`Erro ao salvar criança: ${error.response?.data?.message || error.message}`);
     }
   };
 

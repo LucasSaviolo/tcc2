@@ -64,6 +64,7 @@ class DashboardController extends Controller
             'total_vagas' => $totalVagas,
             'total_creches' => $totalCreches,
             'capacidade_total' => $capacidadeTotal,
+            'ocupadas' => $ocupadas,
             'alocacoes_mes' => $alocacoesMes,
             'crescimento_fila' => $crescimentoFila
         ];
@@ -115,16 +116,23 @@ class DashboardController extends Controller
     {
         $activities = [];
 
-        $alocacoesRecentes = Alocacao::with(['crianca', 'creche'])
+        // Incluir crianças com soft delete para sempre exibir o nome na timeline
+        $alocacoesRecentes = Alocacao::with([
+                'crianca' => function($q){ $q->withTrashed(); },
+                'creche'
+            ])
             ->orderBy('created_at', 'desc')
             ->take(5)
             ->get();
 
         foreach ($alocacoesRecentes as $alocacao) {
+            $nomeCrianca = $alocacao->crianca->nome ?? 'Criança';
+            $nomeCreche = $alocacao->creche->nome ?? 'Creche';
+
             $activities[] = [
                 'id' => $alocacao->id,
                 'type' => 'alocacao',
-                'description' => $alocacao->crianca->nome . ' foi alocada na ' . $alocacao->creche->nome,
+                'description' => $nomeCrianca . ' foi alocada na ' . $nomeCreche,
                 'user' => 'Admin',
                 'created_at' => $alocacao->created_at->toISOString()
             ];
@@ -143,6 +151,25 @@ class DashboardController extends Controller
                 'user' => 'Admin',
                 'created_at' => $crianca->created_at->toISOString()
             ];
+        }
+
+        // Inclusão de eventos de exclusão de crianças (soft delete)
+        $criancasExcluidas = Crianca::onlyTrashed()
+            ->orderBy('deleted_at', 'desc')
+            ->take(3)
+            ->get();
+
+        foreach ($criancasExcluidas as $criancaDel) {
+            // Garante que exista timestamp de exclusão
+            if ($criancaDel->deleted_at) {
+                $activities[] = [
+                    'id' => 'crianca_del_' . $criancaDel->id,
+                    'type' => 'exclusao',
+                    'description' => 'Criança excluída: ' . $criancaDel->nome,
+                    'user' => 'Admin',
+                    'created_at' => $criancaDel->deleted_at->toISOString()
+                ];
+            }
         }
 
         $filaRecente = FilaEspera::with('crianca')

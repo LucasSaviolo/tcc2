@@ -36,15 +36,16 @@ const Criancas: React.FC = () => {
   // Mutation para desativar criança
   const desativarCriancaMutation = useMutation({
     mutationFn: async (criancaId: number) => {
-      // Usar apiService para manter consistência (interceptors, baseURL)
+      // Usar apiService que já trata 422 encerrando alocação
       await apiService.deleteCrianca(criancaId);
     },
     onSuccess: () => {
-      // Invalidar e recarregar a lista de crianças
       queryClient.invalidateQueries({ queryKey: ['criancas'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     },
-    onError: (error: Error) => {
-      alert(error.message || 'Erro ao desativar criança');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || error?.message || 'Erro ao desativar criança';
+      alert(msg);
     },
   });
 
@@ -53,7 +54,7 @@ const Criancas: React.FC = () => {
   };
 
   const handleDesativarCrianca = (criancaId: number, nomeCrianca: string) => {
-    if (window.confirm(`Tem certeza que deseja desativar a criança "${nomeCrianca}"?\n\nEsta ação irá alterar o status da criança para "Desativada" e ela será removida da fila de espera.`)) {
+    if (window.confirm(`Tem certeza que deseja desativar a criança "${nomeCrianca}"?\n\nObservação: se houver alocação ativa, ela será encerrada automaticamente e a criança será desativada.`)) {
       desativarCriancaMutation.mutate(criancaId);
     }
   };

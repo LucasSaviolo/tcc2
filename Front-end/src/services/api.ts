@@ -249,8 +249,23 @@ class ApiService {
       },
     } : {};
     
-    const response: AxiosResponse<ApiResponse<Crianca>> = await this.api.post('/criancas', data, config);
-    return response.data.data;
+    try {
+      const response: AxiosResponse<ApiResponse<Crianca>> = await this.api.post('/criancas', data, config);
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Falha ao criar criança');
+      }
+      return response.data.data;
+    } catch (error: any) {
+      // Se falhar por falta de autenticação, tentar rota pública
+      if (error?.response?.status === 401) {
+        const response: AxiosResponse<ApiResponse<Crianca>> = await this.api.post('/criancas-public', data, config);
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Falha ao criar criança');
+        }
+        return response.data.data;
+      }
+      throw error;
+    }
   }
 
   async updateCrianca(id: number, data: Partial<CriancaFormData> | FormData): Promise<Crianca> {
@@ -260,12 +275,55 @@ class ApiService {
       },
     } : {};
     
-    const response: AxiosResponse<ApiResponse<Crianca>> = await this.api.put(`/criancas/${id}`, data, config);
-    return response.data.data;
+    try {
+      const response: AxiosResponse<ApiResponse<Crianca>> = await this.api.put(`/criancas/${id}`, data, config);
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Falha ao atualizar criança');
+      }
+      return response.data.data;
+    } catch (error: any) {
+      // Se falhar por falta de autenticação, tentar rota pública
+      if (error?.response?.status === 401) {
+        const response: AxiosResponse<ApiResponse<Crianca>> = await this.api.put(`/criancas-public/${id}`, data, config);
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Falha ao atualizar criança');
+        }
+        return response.data.data;
+      }
+      throw error;
+    }
   }
 
   async deleteCrianca(id: number): Promise<void> {
-    await this.api.delete(`/criancas/${id}`);
+    try {
+      await this.api.delete(`/criancas/${id}`);
+    } catch (error: any) {
+      // Se 422 por alocação ativa, chamar novo endpoint para encerrar e desativar
+      if (error?.response?.status === 422) {
+        const resp = await this.api.post(`/criancas/${id}/desativar`, { encerrar_alocacao: true });
+        if (resp.data && resp.data.success === false) {
+          throw new Error(resp.data.message || 'Falha ao desativar criança');
+        }
+        return;
+      }
+      // Se falhar por falta de autenticação, tentar rotas públicas
+      if (error?.response?.status === 401) {
+        try {
+          await this.api.delete(`/criancas-public/${id}`);
+        } catch (errPub: any) {
+          if (errPub?.response?.status === 422) {
+            const resp = await this.api.post(`/criancas-public/${id}/desativar`, { encerrar_alocacao: true });
+            if (resp.data && resp.data.success === false) {
+              throw new Error(resp.data.message || 'Falha ao desativar criança');
+            }
+            return;
+          }
+          throw errPub;
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
   // Creches Methods

@@ -12,6 +12,7 @@ export const useCriancaMutations = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['criancas'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-actions'] });
       toast.success('Criança cadastrada com sucesso!');
     },
     onError: (error: any) => {
@@ -36,6 +37,7 @@ export const useCriancaMutations = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['criancas'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-actions'] });
       toast.success('Criança removida com sucesso!');
     },
     onError: (error: any) => {
@@ -138,6 +140,7 @@ export const useFilaEspera = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fila-espera'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-actions'] });
       toast.success('Fila de espera recalculada com sucesso!');
     },
     onError: (error: any) => {
@@ -161,6 +164,7 @@ export const useAlocacao = () => {
       queryClient.invalidateQueries({ queryKey: ['criancas'] });
       queryClient.invalidateQueries({ queryKey: ['fila-espera'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-actions'] });
       
       if (result.success) {
         toast.success(`Alocação realizada! ${result.alocacoes_realizadas} crianças foram alocadas.`);
