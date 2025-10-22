@@ -211,7 +211,7 @@ const Dashboard: React.FC = () => {
             <div className="mt-1 text-sm text-gray-600 flex items-center gap-3">
               <span>Total: <strong>{totalBar}</strong></span>
               <span className="hidden sm:inline">•</span>
-              <span>Média: <strong>{avgBar.toFixed(1)}</strong></span>
+              <span>Média mensal: <strong>{avgBar.toFixed(1)}</strong></span>
             </div>
           </div>
           {(chartData && normalized.labels.length > 0) && (
